@@ -2,6 +2,9 @@
 #include <SDL2/SDL.h>
 #include <unistd.h>
 
+#include <util.h>
+#include <graphics.h>
+
 int FilterEvents(const SDL_Event *event);
 
 int main(int args, char **argv){
@@ -12,19 +15,13 @@ int main(int args, char **argv){
     return 1;
   }
 
-  if(!SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1")) {
-        printf("Unable to Init hinting: %s\n", SDL_GetError());
-  }
-
   //Opening a Window
-  SDL_Window *win = SDL_CreateWindow("Hello World!", 100, 100, 640, 480, SDL_WINDOW_SHOWN);
+  SDL_Window *win = SDL_CreateWindow("Alien's Community", 100, 100, 640, 480, SDL_WINDOW_SHOWN);
   if (win == NULL){
     printf("SDL_CreateWindow Error: %s\n",SDL_GetError());
     SDL_Quit();
     return 1;
   }
-
-  SDL_Surface* PrimarySurface = SDL_GetWindowSurface(win);
 
   //Creating a renderer
   SDL_Renderer *ren = SDL_CreateRenderer(win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
@@ -35,34 +32,33 @@ int main(int args, char **argv){
     return 1;
   }
 
-  SDL_Event event;
+  char *bgPath = "../assets/images/background.bmp";
+  SDL_Texture *BG = loadTexture(bgPath, ren); 
 
-  /* Ignore key events */
-  SDL_EventState(SDL_KEYDOWN, SDL_IGNORE);
-  SDL_EventState(SDL_KEYUP, SDL_IGNORE);
+  if(BG == NULL){
+    printf("CreateRenderer error: %s\n", SDL_GetError());
+    SDL_DestroyRenderer(ren);
+    SDL_DestroyWindow(win);
+    SDL_Quit();
+  }
 
-   while ( SDL_WaitEvent(&event) >= 0 ) {
+  //A sleepy rendering loop, wait for 3 seconds and render and present the screen each time
+	for (int i = 0; i < 3; ++i){
+		//First clear the renderer
+		SDL_RenderClear(ren);
+		//Draw the texture
 
-   }
-  // sleep(5);
+		//We want to tile our background so draw it 4 times
+		renderTexture(BG, ren, 0, 0);
+
+		//Update the screen
+		SDL_RenderPresent(ren);
+		//Take a quick break after all that hard work
+		SDL_Delay(2000);
+	}
+
+  SDL_DestroyRenderer(ren);
   SDL_DestroyWindow(win);
   SDL_Quit();
   return 0;
-}
-
-int FilterEvents(const SDL_Event *event) {
-  static int boycott = 1;
-
-  /* This quit event signals the closing of the window */
-  if ( (event->type == SDL_QUIT) && boycott ) {
-    printf("Quit event filtered out -- try again.\n");
-    boycott = 0;
-    return(0);
-  }
-  if ( event->type == SDL_MOUSEMOTION ) {
-    printf("Mouse moved to (%d,%d)\n",
-            event->motion.x, event->motion.y);
-    return(0);    /* Drop it, we've handled it */
-  }
-  return(1);
 }

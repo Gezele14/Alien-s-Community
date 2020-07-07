@@ -1,4 +1,4 @@
-all: code
+all: libs code 
 
 libs:
 		(cd lib && make)
