@@ -1,8 +1,10 @@
 #include <stdio.h>
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
 #include <unistd.h>
 #include <stdlib.h>
+
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
 
 #include <util.h>
 #include <graphics.h>
@@ -15,25 +17,28 @@ const int xTiles = SCREEN_WIDTH/TILE_SIZE+1;
 const int yTiles = SCREEN_HEIGHT/TILE_SIZE;
 
 int map[24][46];
-
 int exitProgram = 0;
 
 SDL_Event e;
+SDL_Color fontColor = { 0, 0, 0, 0 };
 
 int useClip = 0;
 
-//Load Textures
-char *bgPath = "../assets/images/map.png";
+//Load Textures & Fonts
+char *bgPath = "../assets/images/bg.png";
 char *roadPath = "../assets/images/tile2.png";
 char *biroadPath = "../assets/images/tile4.png";
 char *bridgePath = "../assets/images/tile3.png";
 char *alienPath = "../assets/images/alien.png";
 char *castle1Path = "../assets/images/castle1.png";
 char *castle2Path = "../assets/images/castle2.png";
+char *mainFontPath = "../assets/fonts/font.ttf";
+
 
 //Functions
 void handleEvents();
 void loadMap();
+int configWindow();
 
 int main(int args, char **argv){
 
@@ -45,8 +50,22 @@ int main(int args, char **argv){
     return 1;
   }
 
+  //Starding SDL_Image
   if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) {
-    fprintf(stderr, "could not initialize sdl2_image: %s\n", IMG_GetError());
+    printf("IMG_Init Error: %s\n", IMG_GetError());
+    return 1;
+  }
+
+  //Starding SDL_TTF
+  //Also need to init SDL_ttf
+	if (TTF_Init() != 0){
+		printf("TTF_Init Error: %s\n", SDL_GetError());
+		SDL_Quit();
+		return 1;
+	}
+
+  //show config Window
+  if(!configWindow()){
     return 1;
   }
 
@@ -76,10 +95,15 @@ int main(int args, char **argv){
   SDL_Texture *Castle1 = loadTexture(castle1Path,ren); 
   SDL_Texture *Castle2 = loadTexture(castle2Path,ren); 
 
+  //Texts
+  SDL_Texture *castleA = renderText("Comunidad A", mainFontPath, fontColor, 25, ren);
+  SDL_Texture *castleB = renderText("Comunidad B", mainFontPath, fontColor, 25, ren);
+
   if(BG == NULL || Alien == NULL){
     printf("CreateRenderer error: %s\n", IMG_GetError());
     SDL_DestroyRenderer(ren);
     SDL_DestroyWindow(win);
+    TTF_Quit();
     SDL_Quit();
   }
 
@@ -123,7 +147,9 @@ int main(int args, char **argv){
     }
 
     renderTexture(Castle1, ren,10, 200, 170, 170);
-    renderTexture(Castle2, ren,SCREEN_WIDTH-160, 235, 190, 170);
+    renderTextureFull(castleA,ren,15,390);
+    renderTexture(Castle2, ren,SCREEN_WIDTH-180, 235, 190, 170);
+    renderTextureFull(castleB,ren,SCREEN_WIDTH-180,220);
 
 		renderTextureSheet(Alien, ren, x, y, 80, &clips[useClip]);
 
@@ -145,6 +171,7 @@ int main(int args, char **argv){
   SDL_DestroyTexture(Alien);
   SDL_DestroyRenderer(ren);
   SDL_DestroyWindow(win);
+  TTF_Quit();
   IMG_Quit();
   SDL_Quit();
 
@@ -205,4 +232,39 @@ void loadMap(){
      j += 1;
    }
   }
+}
+
+int configWindow(){
+  //Opening a Window
+  SDL_Window *config = SDL_CreateWindow("Alien's Community",SCREEN_WIDTH/2-150, 100, 300, 500, SDL_WINDOW_SHOWN);
+  if (config == NULL){
+    printf("SDL_CreateWindow Error: %s\n",SDL_GetError());
+    return 1;
+  }
+
+  //Creating a renderer
+  SDL_Renderer *configRen = SDL_CreateRenderer(config, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+  if (configRen == NULL){
+    SDL_DestroyWindow(config);
+    printf("SDL_CreateRenderer Error: %s\n", SDL_GetError());
+    return 1;
+  }
+  
+  SDL_Texture *BG = loadTexture(bgPath, configRen);
+
+  while(!exitProgram){
+    handleEvents();
+    renderTexture(BG,configRen,0,0,300,500);
+
+    //Update the screen
+		SDL_RenderPresent(configRen); 
+    SDL_Delay(250);
+  }
+
+  SDL_DestroyWindow(config);
+  SDL_DestroyRenderer(configRen);
+
+
+  exitProgram = 0;
+  return 0;
 }

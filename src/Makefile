@@ -8,7 +8,7 @@ LIB_GRAPH = graphics/libgraphics.a
 #LIB_SEM = semaphore/libsemaphore.a
 
 CC = gcc
-CFLAGS = -Wall -lm `sdl2-config --cflags --libs` -lSDL2_image
+CFLAGS = -Wall -lm `sdl2-config --cflags --libs` -lSDL2_image -lSDL2_ttf
 
 LIBS = $(LIB)/$(LIB_UT) $(LIB)/$(LIB_GRAPH) 
 

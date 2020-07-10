@@ -5,7 +5,7 @@ LIB_LIBRARY = lib$(LIBRARY).a
 
 #Compiler params
 CC = gcc
-CFLAGS = -c -Wall -lm `sdl2-config --cflags --libs` -lSDL2_image
+CFLAGS = -c -Wall -lm `sdl2-config --cflags --libs` -lSDL2_image -lSDL2_ttf
 
 #All
 ALL: $(LIB_LIBRARY)

@@ -1,5 +1,6 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
 #include <stdio.h>
 
 
@@ -90,6 +91,41 @@ void renderTextureSheet(SDL_Texture *tex, SDL_Renderer *ren, int x, int y, int w
 		SDL_QueryTexture(tex, NULL, NULL, &dst.w, &dst.h);
 	}
 	renderTextureClip(tex, ren, dst, clip);
+}
+
+/**
+* Render the message we want to display to a texture for drawing
+* @param message The message we want to display
+* @param fontFile The font we want to use to render the text
+* @param color The color we want the text to be
+* @param fontSize The size we want the font to be
+* @param renderer The renderer to load the texture in
+* @return An SDL_Texture containing the rendered message, or nullptr if something went wrong
+*/
+SDL_Texture* renderText(char *message, char * fontFile, SDL_Color color, int fontSize, SDL_Renderer *renderer)
+{
+	//Open the font
+	TTF_Font *font = TTF_OpenFont(fontFile, fontSize);
+	if (font == NULL){
+		printf("TTF_OpenFont error: %s\n", SDL_GetError());
+		return NULL;
+	}	
+	//We need to first render to a surface as that's what TTF_RenderText
+	//returns, then load that surface into a texture
+	SDL_Surface *surf = TTF_RenderText_Blended(font, message, color);
+	if (surf == NULL){
+		TTF_CloseFont(font);
+		printf("TTF_RenderText error: %s\n", SDL_GetError());
+		return NULL;
+	}
+	SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
+	if (texture == NULL){
+		printf("CreateTexture error: %s\n", SDL_GetError());
+	}
+	//Clean up the surface and font
+	SDL_FreeSurface(surf);
+	TTF_CloseFont(font);
+	return texture;
 }
 
 
