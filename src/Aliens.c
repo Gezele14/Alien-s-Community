@@ -2,15 +2,19 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include <util.h>
 #include <graphics.h>
 
-const int SCREEN_WIDTH = 1366; //34
-const int SCREEN_HEIGHT = 720; //18
-const int TILE_SIZE = 40;
+const int SCREEN_WIDTH = 1366; //
+const int SCREEN_HEIGHT = 720; //
+const int TILE_SIZE = 30;
 
-int map[18][34];
+const int xTiles = SCREEN_WIDTH/TILE_SIZE+1;
+const int yTiles = SCREEN_HEIGHT/TILE_SIZE;
+
+int map[24][46];
 
 int exitProgram = 0;
 
@@ -19,13 +23,21 @@ SDL_Event e;
 int useClip = 0;
 
 //Load Textures
-char *bgPath = "../assets/images/tile.png";
+char *bgPath = "../assets/images/map.png";
+char *roadPath = "../assets/images/tile2.png";
+char *biroadPath = "../assets/images/tile4.png";
+char *bridgePath = "../assets/images/tile3.png";
 char *alienPath = "../assets/images/alien.png";
+char *castle1Path = "../assets/images/castle1.png";
+char *castle2Path = "../assets/images/castle2.png";
 
 //Functions
 void handleEvents();
+void loadMap();
 
 int main(int args, char **argv){
+
+  loadMap();
 
   //Starting SDL
   if (SDL_Init(SDL_INIT_VIDEO) != 0){
@@ -57,7 +69,12 @@ int main(int args, char **argv){
 
   
   SDL_Texture *BG = loadTexture(bgPath, ren);
+  SDL_Texture *BiRoad = loadTexture(biroadPath, ren);
+  SDL_Texture *Bridge = loadTexture(bridgePath, ren);
+  SDL_Texture *Road = loadTexture(roadPath, ren);
   SDL_Texture *Alien = loadTexture(alienPath,ren); 
+  SDL_Texture *Castle1 = loadTexture(castle1Path,ren); 
+  SDL_Texture *Castle2 = loadTexture(castle2Path,ren); 
 
   if(BG == NULL || Alien == NULL){
     printf("CreateRenderer error: %s\n", IMG_GetError());
@@ -92,16 +109,23 @@ int main(int args, char **argv){
 		SDL_RenderClear(ren);
 
     //Draw the background
-    int xTiles = SCREEN_WIDTH/TILE_SIZE;
-    int yTiles = SCREEN_HEIGHT/TILE_SIZE;
-
-    for(int i=0;i<xTiles;i++){
-      for(int j=0;j<yTiles;j++){
-        renderTexture(BG, ren, i * TILE_SIZE, j * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    renderTexture(BG, ren,0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    for(int i=0;i<yTiles;i++){
+      for(int j=0;j<xTiles;j++){
+        if (map[i][j] == 1){
+          renderTexture(Road, ren, j * TILE_SIZE, i * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        } else if (map[i][j] == 2){
+          renderTexture(BiRoad, ren, j * TILE_SIZE, i * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        } else if (map[i][j] == 3){
+          renderTexture(Bridge, ren, j * TILE_SIZE, i * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
       }
     }
 
-		renderTextureSheet(Alien, ren, x, y, &clips[useClip]);
+    renderTexture(Castle1, ren,10, 200, 170, 170);
+    renderTexture(Castle2, ren,SCREEN_WIDTH-160, 235, 190, 170);
+
+		renderTextureSheet(Alien, ren, x, y, 80, &clips[useClip]);
 
 		//Update the screen
 		SDL_RenderPresent(ren);
@@ -154,5 +178,31 @@ void handleEvents(){
           break;
       }
 		}
+  }
+}
+
+void loadMap(){
+  FILE * file;
+  file = fopen("../assets/map/map1.map", "r");
+  char ch;
+  int i = 0;
+  int j = 0;
+  while ((ch = fgetc(file)) != EOF){
+   if(ch == '\n'){
+     i += 1;
+     j = 0;
+   } else if (ch == '-'){
+     map[i][j] = 0;
+     j += 1;
+   } else if (ch == 'x'){
+     map[i][j] = 1;
+     j += 1;
+   } else if (ch == 'o'){
+     map[i][j] = 2;
+     j += 1;
+   } else if (ch == 'p'){
+     map[i][j] = 3;
+     j += 1;
+   }
   }
 }

@@ -77,14 +77,14 @@ void renderTextureClip(SDL_Texture *tex, SDL_Renderer *ren, SDL_Rect dst, SDL_Re
 * @param clip The sub-section of the texture to draw (clipping rect)
 *		default of nullptr draws the entire texture
 */
-void renderTextureSheet(SDL_Texture *tex, SDL_Renderer *ren, int x, int y,SDL_Rect *clip)
+void renderTextureSheet(SDL_Texture *tex, SDL_Renderer *ren, int x, int y, int w,SDL_Rect *clip)
 {
 	SDL_Rect dst;
 	dst.x = x;
 	dst.y = y;
 	if (clip != NULL){
-		dst.w = clip->w;
-		dst.h = clip->h;
+		dst.w = w;
+		dst.h = w;
 	}
 	else {
 		SDL_QueryTexture(tex, NULL, NULL, &dst.w, &dst.h);
