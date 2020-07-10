@@ -13,4 +13,6 @@ void renderTextureSheet(SDL_Texture *tex, SDL_Renderer *ren, int x, int y, int w
 
 SDL_Texture* renderText(char *message, char * fontFile, SDL_Color color, int fontSize, SDL_Renderer *renderer);
 
+SDL_Rect getTextureRect(SDL_Texture *Tex, int x, int y);
+
 #endif 

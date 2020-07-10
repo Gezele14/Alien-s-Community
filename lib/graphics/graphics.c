@@ -128,6 +128,25 @@ SDL_Texture* renderText(char *message, char * fontFile, SDL_Color color, int fon
 	return texture;
 }
 
+/**
+* Calc the rectangle of any Texture for collisions
+* @param Tex The texture to calculate de rect
+* @param x upper left corner x coordenate of the texture
+* @param y upper left corner y coordenate of the texture
+* @return A bounding box of the texture.
+*/
+SDL_Rect getTextureRect(SDL_Texture *Tex, int x, int y){
+	SDL_Rect temp;
+	int w,h;
+	SDL_QueryTexture(Tex, NULL, NULL, &w, &h);
+
+	temp.x = x;
+	temp.y = y;
+	temp.w = w;
+	temp.h = h;
+	return temp;
+}
+
 
 
 
