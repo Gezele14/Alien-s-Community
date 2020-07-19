@@ -8,5 +8,6 @@ int createDir(const char* path);
 char* concat(const char *s1, const char *s2);
 int isNumber(char *text);
 void printc(char *msg, int color);
+char * int2str(int num);
 
 #endif 
