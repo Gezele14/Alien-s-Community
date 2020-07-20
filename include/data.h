@@ -19,12 +19,15 @@ typedef struct{
   int isAlive;
   int posi;
   int posj;
-  int skinType;
-  int velocity;
+  double velocity;
   char direction;
 }alien;
 
+
+
 int getBridgeData(bridge *bridge, char* filename);
 int moveAlien(alien *Alien, cell map[24][46]);
+alien * createAlien(int baseVel, int home, int type, int mul);
+void print(alien Alien);
 
 #endif 

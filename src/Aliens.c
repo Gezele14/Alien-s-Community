@@ -10,6 +10,7 @@
 #include <graphics.h>
 #include <data.h>
 #include <linkedlist.h>
+#include <lpthread.h>
 
 const int SCREEN_WIDTH = 1366; //
 const int SCREEN_HEIGHT = 720; //
@@ -23,7 +24,6 @@ int exitProgram = 0;
 int modeManual = 0; 
 
 
-
 SDL_Event e;
 SDL_Color fontColor = { 0, 0, 0, 255};
 
@@ -31,7 +31,7 @@ int useClip = 0;
 
 int baseVel = 5;
 
-alien comunidadA = {1,1,9,3,1,5,'B'};
+lpthread_mutex_t lock;
 
 //Load Textures & Fonts
 char *bgPath = "../assets/images/bg.png";
@@ -63,34 +63,10 @@ int configWindow();
 
 int main(int args, char **argv){
 
+  srand(time(NULL));  
+
   loadMap();
   
-  llist *communityA = llist_create(NULL);
-
-  cell  al = {1,'B'}; 
-  llist_addLast(communityA,&al);
-
-  cell  al1 = {2,'B'}; 
-  llist_addLast(communityA,&al1);
-
-  cell  al2 = {3,'B'}; 
-  llist_addLast(communityA,&al2);
-   
-  cell  al3 = {4,'B'}; 
-  llist_addLast(communityA,&al3);
-
-  cell  al4 = {5,'B'}; 
-  llist_addById(communityA,&al4,3);
-
-  for(int i = 0; i<5;i++){
-    cell *celda = (cell *)llist_getbyId(communityA, i);
-    if (celda == NULL){
-      continue;
-    }
-    printf("El valor de type es %d\n",celda->type);
-  }
-
-  llist_free(communityA);
 
   if(getBridgeData(&East, "../config/eastBridge.conf")){
     return 1;
@@ -105,12 +81,14 @@ int main(int args, char **argv){
   //Starding SDL_Image
   if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG)) {
     printf("IMG_Init Error: %s\n", IMG_GetError());
+    SDL_Quit();
     return 1;
   }
 
   //Starding SDL_TTF
 	if (TTF_Init() != 0){
 		printf("TTF_Init Error: %s\n", SDL_GetError());
+    IMG_Quit();
 		SDL_Quit();
 		return 1;
 	}
@@ -127,10 +105,22 @@ int main(int args, char **argv){
     printf("Se selecciono el modo Auto\n");
   }
 
+  llist *communityA = llist_create(NULL);
+  llist *communityB = llist_create(NULL);
+
+  for (int i = 0; i < 5; i++){
+    int type = rand()%3;
+    int mul = (rand() % (200 - 50 + 1)) + 50;
+    alien *temp = createAlien(baseVel, 1,type, mul);
+    llist_addLast(communityA,temp);
+  }
+
   //Opening a Window
   SDL_Window *win = SDL_CreateWindow("Alien's Community", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
   if (win == NULL){
     printf("SDL_CreateWindow Error: %s\n",SDL_GetError());
+    IMG_Quit();
+    TTF_Quit();
     SDL_Quit();
     return 1;
   }
@@ -140,6 +130,8 @@ int main(int args, char **argv){
   if (ren == NULL){
     SDL_DestroyWindow(win);
     printf("SDL_CreateRenderer Error: %s\n", SDL_GetError());
+    IMG_Quit();
+    TTF_Quit();
     SDL_Quit();
     return 1;
   }
@@ -157,29 +149,19 @@ int main(int args, char **argv){
   SDL_Texture *castleA = renderText("Comunidad A", mainFontPath, fontColor, 25, ren);
   SDL_Texture *castleB = renderText("Comunidad B", mainFontPath, fontColor, 25, ren);
 
-  if(BG == NULL || Alien == NULL){
-    printf("CreateRenderer error: %s\n", IMG_GetError());
-    SDL_DestroyRenderer(ren);
-    SDL_DestroyWindow(win);
-    TTF_Quit();
-    SDL_Quit();
+
+  //Setup the clips for Community A
+	SDL_Rect clipsA[3][3];
+  for (int i = 0; i < 3; i++){
+    loadClips(clipsA[i],1,i+1,69,69);
   }
 
-  int iW = 74, iH = 74;
-	int x = SCREEN_WIDTH / 2 - iW / 2;
-	int y = SCREEN_HEIGHT / 2 - iH / 2;
+  //Setup the clips for Community B
+	SDL_Rect clipsB[3][3];
+  for (int i = 0; i < 3; i++){
+    loadClips(clipsB[i],2,i+1,69,69);
+  }
 
-  //Setup the clips for our image
-	SDL_Rect clips[5];
-
-  //Since our clips our uniform in size we can generate a list of their
-	//positions using some math (the specifics of this are covered in the lesson)
-	for (int i = 0; i < 4; ++i){
-		clips[i].x = 1 * iW;
-		clips[i].y = i * iH ;
-		clips[i].w = iW;
-		clips[i].h = iH;
-	}
 
   int animCounter = 0;
   //A sleepy rendering loop, wait for 3 seconds and render and present the screen each time
@@ -235,7 +217,12 @@ int main(int args, char **argv){
     renderTexture(Castle2, ren,SCREEN_WIDTH-180, 235, 190, 170);
     renderTextureFull(castleB,ren,SCREEN_WIDTH-180,220);
 
-		renderTextureSheet(Alien, ren, comunidadA.posj * TILE_SIZE, comunidadA.posi * TILE_SIZE, 40, &clips[useClip]);
+    for (int i = 0; i < llist_getSize(communityA)-1; i++){
+      alien *temp = (alien *)llist_getbyId(communityA, i);
+      renderTextureSheet(Alien, ren, temp->posj * TILE_SIZE, temp->posi * TILE_SIZE, 40, &clipsA[temp->type][useClip]);
+    }
+    
+		
 
 		//Update the screen
 		SDL_RenderPresent(ren);
@@ -244,17 +231,26 @@ int main(int args, char **argv){
 
     animCounter += 1;
     if (animCounter == 10){
-      if(moveAlien(&comunidadA, map))
-        return 1;
+      
       animCounter = 0;
       useClip +=1;
-      if (useClip == 4)
+      if (useClip == 3)
         useClip = 0;
     }
 	}
 
+  
+  llist_free(communityA);
+  llist_free(communityB);
   SDL_DestroyTexture(BG);
+  SDL_DestroyTexture(BiRoad);
+  SDL_DestroyTexture(Bridge);
+  SDL_DestroyTexture(Road);
   SDL_DestroyTexture(Alien);
+  SDL_DestroyTexture(Castle1);
+  SDL_DestroyTexture(Castle2);
+  SDL_DestroyTexture(castleA);
+  SDL_DestroyTexture(castleB);
   SDL_DestroyRenderer(ren);
   SDL_DestroyWindow(win);
   TTF_Quit();
@@ -297,6 +293,8 @@ void loadMap(){
      j += 1;
    }
   }
+
+  fclose(file);
 }
 
 int configWindow(){
@@ -402,6 +400,16 @@ int configWindow(){
     SDL_Delay(250);
   }
 
+  SDL_DestroyTexture(BG);
+  SDL_DestroyTexture(Button1);
+  SDL_DestroyTexture(Button2);
+  SDL_DestroyTexture(Left);
+  SDL_DestroyTexture(Right);
+  SDL_DestroyTexture(Ok);
+  SDL_DestroyTexture(Cancel);
+  SDL_DestroyTexture(selection);
+  SDL_DestroyTexture(velSelText);
+  SDL_DestroyTexture(velSel);
   SDL_DestroyWindow(config);
   SDL_DestroyRenderer(configRen);
 

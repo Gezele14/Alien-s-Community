@@ -1,5 +1,5 @@
 #Libs
-All: libutil libgraphics libdata libllist
+All: libutil libgraphics libdata libllist liblpthread
 
 libutil: 
 		(cd util && make)
@@ -12,3 +12,6 @@ libdata:
 
 libllist:
 		(cd linkedlist && make)
+
+liblpthread:
+		(cd lpthread && make)

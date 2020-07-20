@@ -15,4 +15,6 @@ SDL_Texture* renderText(char *message, char * fontFile, SDL_Color color, int fon
 
 SDL_Rect getTextureRect(SDL_Texture *Tex, int x, int y);
 
+void loadClips(SDL_Rect clips[3], int type, int num, int w, int h);
+
 #endif 

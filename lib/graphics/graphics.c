@@ -147,7 +147,11 @@ SDL_Rect getTextureRect(SDL_Texture *Tex, int x, int y){
 	return temp;
 }
 
-
-
-
-
+void loadClips(SDL_Rect clips[3], int type, int num, int w, int h){
+	for (int i = 0; i < 3; ++i){
+		clips[i].x = (i + 3 * (num-1)) * w;
+		clips[i].y = (4 * (type -1)) * h ;
+		clips[i].w = w;
+		clips[i].h = h;
+	}
+}
