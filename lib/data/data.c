@@ -69,16 +69,33 @@ int getBridgeData(bridge *BR, char* filename){
  * 
 */
 int moveAlien(alien *Alien, cell map[24][46]){
-  int iteri[8] = {-1,-1,-1,0,0,1,1,1};
-  int iterj[8] = {-1,0,1,-1,1,-1,0,1};
-  for (int x = 0; x<8; x++){
-    int i = Alien->posi;
-    int j = Alien->posj;
-    if (Alien->direction == map[i+iteri[x]][j+iterj[x]].direction){
-      Alien -> posi = i + iteri[x];
-      Alien -> posj = j + iterj[x];
+  int i = Alien->posi;
+  int j = Alien->posj;
+  
+  int p[4]= {-1, 0, 1, 0};
+  int q[4]= {0, 1, 0, -1};
+
+  int iter = 0;
+  if (Alien->lmove == 1){
+    iter = 0;
+  } else if (Alien->lmove == 2){
+    iter = 1;
+  } else if (Alien->lmove == 3){
+    iter = 2;
+  } else if (Alien->lmove == 4){
+    iter = 3;
+  }
+
+  for(int x = 0; x < 4; x++){
+    if(Alien -> direction == map[i + p[iter]][j + q[iter]].direction){
+      Alien->posi = i + p[iter];
+      Alien->posj = j + q[iter];
+      Alien->lmove = iter+1;
       return 0;
     }
+    iter ++;
+    if (iter == 4)
+      iter = 0;
   }
   return 1;
 }
@@ -96,6 +113,8 @@ alien * createAlien(int baseVel, int home, int type, int mul){
   
   newAlien -> type =  type;
   newAlien -> isAlive = 1;
+  newAlien -> lmove = 0;
+  newAlien -> move = 1;
   if (newAlien->type == 0){
     newAlien -> velocity = baseVel;
   } else if (newAlien->type == 1){

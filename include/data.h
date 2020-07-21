@@ -19,6 +19,8 @@ typedef struct{
   int isAlive;
   int posi;
   int posj;
+  int lmove;
+  int move;
   double velocity;
   char direction;
 }alien;

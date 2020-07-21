@@ -30,6 +30,7 @@ SDL_Color fontColor = { 0, 0, 0, 255};
 int useClip = 0;
 
 int baseVel = 5;
+int maxTemp = 5;
 
 lpthread_mutex_t lock;
 
@@ -50,6 +51,9 @@ char *buttonleft = "../assets/images/left.png";
 char *buttonright = "../assets/images/right.png";
 char *buttonOk = "../assets/images/ok.png";
 char *buttonCancel = "../assets/images/cancel.png";
+char *iconPath = "../assets/images/icon.png";
+
+
 
 char *mainFontPath = "../assets/fonts/font.ttf";
 
@@ -60,13 +64,19 @@ bridge East;
 void handleEvents();
 void loadMap();
 int configWindow();
+int threadAlien();
+int delAlien(alien Alien, int x, int y);
 
 int main(int args, char **argv){
 
   srand(time(NULL));  
-
   loadMap();
-  
+
+  //Initialize Mutex
+  if (Lmutex_init(&lock, NULL) != 0){ 
+    printf("\n Mutex init has failed\n"); 
+    return 1; 
+  }
 
   if(getBridgeData(&East, "../config/eastBridge.conf")){
     return 1;
@@ -106,12 +116,21 @@ int main(int args, char **argv){
   }
 
   llist *communityA = llist_create(NULL);
+  llist *threadsCommunityA = llist_create(NULL);
   llist *communityB = llist_create(NULL);
+  llist *threadsCommunityB = llist_create(NULL);
 
   for (int i = 0; i < 5; i++){
     int type = rand()%3;
     int mul = (rand() % (200 - 50 + 1)) + 50;
-    alien *temp = createAlien(baseVel, 1,type, mul);
+    alien *temp;
+    if (i == 2)
+      temp = createAlien(baseVel, 0,type, mul);
+    else
+      temp = createAlien(baseVel, 1,type, mul);
+    lpthread_t *thread = malloc(sizeof(lpthread_t));
+    Lthread_create(thread,NULL,&threadAlien,temp);
+    llist_addLast(threadsCommunityA,threadsCommunityA);
     llist_addLast(communityA,temp);
   }
 
@@ -144,6 +163,9 @@ int main(int args, char **argv){
   SDL_Texture *Alien = loadTexture(alienPath,ren); 
   SDL_Texture *Castle1 = loadTexture(castle1Path,ren); 
   SDL_Texture *Castle2 = loadTexture(castle2Path,ren); 
+  
+  SDL_Surface *icon = IMG_Load(iconPath);
+  SDL_SetWindowIcon(win, icon);
 
   //Texts
   SDL_Texture *castleA = renderText("Comunidad A", mainFontPath, fontColor, 25, ren);
@@ -162,7 +184,7 @@ int main(int args, char **argv){
     loadClips(clipsB[i],2,i+1,69,69);
   }
 
-
+  int mouseX, mouseY;
   int animCounter = 0;
   //A sleepy rendering loop, wait for 3 seconds and render and present the screen each time
 	while(!exitProgram){
@@ -172,22 +194,26 @@ int main(int args, char **argv){
     if (e.type == SDL_QUIT){
       exitProgram = 1;
     }
+    if (e.type == SDL_MOUSEBUTTONDOWN){
+      SDL_GetMouseState(&mouseX,&mouseY);
+      int communityASize = llist_getSize(communityA)-1;
+
+      for (int i = 0; i <= communityASize; i++){
+        alien *DUT = (alien *)llist_getbyId(communityA, i);
+        if (delAlien(*DUT,mouseX, mouseY)){
+          lpthread_t *threadTemp = (lpthread_t *)llist_getbyId(threadsCommunityA,i);
+          Lthread_exit(threadTemp->pid);
+          llist_delById(threadsCommunityA, i);
+          llist_delById(communityA, i);
+          break;
+        }
+      }
+    }
+
     if (e.type == SDL_KEYDOWN){
       switch (e.key.keysym.sym){
         case SDLK_1:
           useClip = 0;
-          break;
-        case SDLK_2:
-          useClip = 1;
-          break;
-        case SDLK_3:
-          useClip = 2;
-          break;
-        case SDLK_4:
-          useClip = 3;
-          break;
-        case SDLK_ESCAPE:
-          exitProgram = 1;
           break;
         default:
           break;
@@ -230,8 +256,7 @@ int main(int args, char **argv){
     SDL_Delay(17);
 
     animCounter += 1;
-    if (animCounter == 10){
-      
+    if (animCounter == 20){
       animCounter = 0;
       useClip +=1;
       if (useClip == 3)
@@ -241,7 +266,9 @@ int main(int args, char **argv){
 
   
   llist_free(communityA);
+  llist_free(threadsCommunityA);
   llist_free(communityB);
+  llist_free(threadsCommunityB);
   SDL_DestroyTexture(BG);
   SDL_DestroyTexture(BiRoad);
   SDL_DestroyTexture(Bridge);
@@ -257,6 +284,7 @@ int main(int args, char **argv){
   IMG_Quit();
   SDL_Quit();
 
+  Lmutex_destroy(&lock);
   return 0;
 }
 
@@ -297,6 +325,37 @@ void loadMap(){
   fclose(file);
 }
 
+int threadAlien(alien *Alien){
+  while (Alien->isAlive){
+    Lmutex_lock(&lock);
+    if (Alien->move) 
+      moveAlien(Alien,map);
+    Lmutex_unlock(&lock);
+
+    double wait = Alien->velocity;
+    double newWait = 5/wait*10;
+    usleep(newWait*1000000); //microsec
+    // velocity = 200 then sleep 1/4 sec (max)
+    // velocity = 5 then sleep 10 sec (min)
+  }
+  return 0;
+}
+
+int delAlien(alien Alien, int x, int y){
+  SDL_Rect mouse;
+  mouse.x = x; mouse.y = y;
+  mouse.w = 1; mouse.h = 1;
+
+  SDL_Rect al;
+  al.x = Alien.posj*TILE_SIZE; al.y = Alien.posi*TILE_SIZE;
+  al.w = TILE_SIZE; al.h = TILE_SIZE;
+
+  if(SDL_HasIntersection(&mouse,&al))
+    return 1;
+  else
+    return 0;
+}
+
 int configWindow(){
   //Opening a Window
   SDL_Window *config = SDL_CreateWindow("Alien's Community",SCREEN_WIDTH/2-150, 200, 320, 400, SDL_WINDOW_SHOWN);
@@ -314,10 +373,12 @@ int configWindow(){
   }
 
   char velText[5];
+  char maxTempText[5];
   int isButton1 = 0;
   int isButton2 = 0;
 
   SDL_itoa(baseVel,velText,10);
+  SDL_itoa(maxTemp,maxTempText,10);
   
   SDL_Texture *BG = loadTexture(bgPath, configRen);
   SDL_Texture *Button1 = loadTexture(isButton1? button1Path : button1_selPath,configRen);;
@@ -328,12 +389,16 @@ int configWindow(){
   SDL_Texture *Cancel = loadTexture(buttonCancel, configRen);
   SDL_Texture *selection = renderText("Seleccione un modo", mainFontPath, fontColor, 25, configRen);
   SDL_Texture *velSelText = renderText("Velocidad base", mainFontPath, fontColor, 25, configRen);
+  SDL_Texture *maxTempTitle = renderText("Tiempo maximo", mainFontPath, fontColor, 25, configRen);
   SDL_Texture *velSel = renderText(velText, mainFontPath, fontColor, 25, configRen);
+  SDL_Texture *maxTempSel = renderText(maxTempText, mainFontPath, fontColor, 25, configRen);
 
   SDL_Rect Button1Rect = getTextureRect(Button1,15,75);
   SDL_Rect Button2Rect = getTextureRect(Button2,175,75);
   SDL_Rect ButtonLeftRect = getTextureRect(Left, 80,210);
   SDL_Rect ButtonRightRect = getTextureRect(Right,190,210);
+  SDL_Rect ButtonLeftRect2 = getTextureRect(Left, 80,290);
+  SDL_Rect ButtonRightRect2 = getTextureRect(Right,190,290);
   SDL_Rect ButtonOkRect = getTextureRect(Ok,70,350);
   SDL_Rect ButtonCancelRect = getTextureRect(Cancel,170,350);
   SDL_Rect mouseRect;
@@ -371,6 +436,16 @@ int configWindow(){
             baseVel += 5;
           SDL_itoa(baseVel,velText,10);
           velSel = renderText(velText, mainFontPath, fontColor, 25, configRen);
+        }else if(SDL_HasIntersection(&mouseRect,&ButtonLeftRect2)){
+          if (maxTemp > 5)
+            maxTemp -= 5;
+          SDL_itoa(maxTemp,maxTempText,10);
+          maxTempSel = renderText(maxTempText, mainFontPath, fontColor, 25, configRen);
+        } else if(SDL_HasIntersection(&mouseRect,&ButtonRightRect2)){
+          if (maxTemp < 60)
+            maxTemp += 5;
+          SDL_itoa(maxTemp,maxTempText,10);
+          maxTempSel = renderText(maxTempText, mainFontPath, fontColor, 25, configRen);
         } else if(SDL_HasIntersection(&mouseRect,&ButtonOkRect)){
           if (isButton2 || isButton1){
             exitWin = 1;
@@ -392,12 +467,17 @@ int configWindow(){
     renderTextureFull(Right,configRen,ButtonRightRect.x,ButtonRightRect.y);
     renderTextureFull(velSel,configRen,150,220);
 
+    renderTextureFull(maxTempTitle,configRen,60,260);
+    renderTextureFull(Left,configRen,ButtonLeftRect2.x,ButtonLeftRect2.y);
+    renderTextureFull(Right,configRen,ButtonRightRect2.x,ButtonRightRect2.y);
+    renderTextureFull(maxTempSel,configRen,150,300);
+
     renderTextureFull(Ok,configRen,ButtonOkRect.x,ButtonOkRect.y);
     renderTextureFull(Cancel,configRen,ButtonCancelRect.x,ButtonCancelRect.y);
 
     //Update the screen
 		SDL_RenderPresent(configRen); 
-    SDL_Delay(250);
+    SDL_Delay(30);
   }
 
   SDL_DestroyTexture(BG);
@@ -410,6 +490,8 @@ int configWindow(){
   SDL_DestroyTexture(selection);
   SDL_DestroyTexture(velSelText);
   SDL_DestroyTexture(velSel);
+  SDL_DestroyTexture(maxTempTitle);
+  SDL_DestroyTexture(maxTempSel);
   SDL_DestroyWindow(config);
   SDL_DestroyRenderer(configRen);
 
