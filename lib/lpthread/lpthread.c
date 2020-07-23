@@ -24,7 +24,7 @@ int Lthread_create(lpthread_t* thread, const lpthread_attr_t *attr, int (*start_
 		printf("Error: Could not allocate stack.\n");
 		return LF_MALLOCERROR;
 	}
-
+	
 	/* Call the clone system call to create the child thread */
 	thread->pid = clone(start_routine, (char*) (thread->stack + FIBER_STACK),
 						SIGCHLD|
@@ -32,7 +32,6 @@ int Lthread_create(lpthread_t* thread, const lpthread_attr_t *attr, int (*start_
 						CLONE_FILES|
 						CLONE_SIGHAND|
 						CLONE_VM|
-						CLONE_PARENT_SETTID|
 						CLONE_CHILD_CLEARTID|
 						CLONE_PTRACE, arg);
 	if(thread->pid==-1){ // Error in clone
@@ -42,29 +41,53 @@ int Lthread_create(lpthread_t* thread, const lpthread_attr_t *attr, int (*start_
 	}
 	// Copies thread to list
 	thread->detached=0;
-	memcpy((void*)&lpthreadList[numLPthreads++], (void*)thread, sizeof(lpthread_t));
-	return LF_NOERROR;
+	thread->killed = 0;
+	if(numLPthreads == 0){
+		memcpy((void*)&lpthreadList[numLPthreads], (void*)thread, sizeof(lpthread_t));
+		return LF_NOERROR;
+	} else{
+		for (int i = 0; i <= numLPthreads; i++){
+			if(lpthreadList[i].killed == 1){
+				numLPthreads = i;
+				memcpy((void*)&lpthreadList[numLPthreads], (void*)thread, sizeof(lpthread_t));
+				return LF_NOERROR;
+			}
+		}
+		if (numLPthreads < MAX_FIBERS-1){
+			memcpy((void*)&lpthreadList[numLPthreads], (void*)thread, sizeof(lpthread_t));
+			return LF_NOERROR;
+		}
+	}
+	return LF_MAXFIBERS;
 }
 
 
 
 int Lthread_exit(int  pid){
-	kill(pid, SIGKILL);
-	printf("thread(killed), id = %d\n",pid);
-	return 0;
+	if(kill(pid, SIGKILL) == 0){ 
+		printf("thread(killed), id = %d\n",pid);
+		int index = map_pid_index(pid);
+		lpthreadList[index].killed = 1;
+		return 0;
+	}else{
+		return 1;
+	}
 }
+
 int Lthread_yield(){
 	/* Call the sched_yield system call which moves the current process to the
 	end of the process queue. */
 	sched_yield();
 	return 0;
 }
-int Lthread_join(lpthread_t thread, void **retval){
-	int index = map_pid_index(thread.pid);
+
+int Lthread_join(int pid, void **retval){
+	int index = map_pid_index(pid);
 
 	if(lpthreadList[index].detached==0){
-		waitpid(thread.pid, 0, 0); // Key is here, wait for it to end
+		waitpid(pid, 0, 0); // Key is here, wait for it to end
 		printf("%s\n", "done join");
+		lpthreadList[index].killed = 1;
 
 		return 0;
 	}
@@ -72,6 +95,7 @@ int Lthread_join(lpthread_t thread, void **retval){
 		return 1;
 	}
 }
+
 int Lthread_detach(lpthread_t thread){
 	int index = map_pid_index(thread.pid);
 	lpthreadList[index].detached = 1;
@@ -83,16 +107,19 @@ int Lmutex_init(lpthread_mutex_t* restrict mutex, const lpthread_mutexattr_t *re
 	mutex->pid=0;
 	return 0;
 }
+
 int Lmutex_destroy(lpthread_mutex_t *mutex){
 	mutex->locked = 0; // Set the mutex as unlocked
 	mutex->pid = 0;
 	return 0;
 }
+
 int Lmutex_unlock(lpthread_mutex_t *mutex){
 	mutex->locked = 0; // Set the mutex as unlocked
 	mutex->pid = 0;
 	return 0;
 }
+
 int Lmutex_trylock(lpthread_mutex_t *mutex){
 	if(mutex->locked==0){ // If mutex is not locked, lock it
 		mutex->locked=1;
@@ -101,6 +128,7 @@ int Lmutex_trylock(lpthread_mutex_t *mutex){
 	}
 	return 1;
 }
+
 int Lmutex_lock(lpthread_mutex_t *mutex){
 	LOOP: while(mutex->locked); // Race condition !!!!!!!!! Wait for mutex to unlock
 	pid_t id = getpid();
@@ -116,6 +144,7 @@ void Lthread_end(){
 	// Kills the thread
 	killpg(getpgrp(), SIGKILL);
 }
+
 void init_threads(){
 	// Initialices
 	for (int i = 0; i < MAX_FIBERS; ++ i){
@@ -128,8 +157,8 @@ void init_threads(){
 	// Sets the required pids
 	group_pid = getpgrp();
 	parent_pid = getpid();
-
 }
+
 int map_pid_index(pid_t id){
 	// Search for that pid
 	for(int i = 0; i < MAX_FIBERS; ++i){
@@ -139,6 +168,7 @@ int map_pid_index(pid_t id){
 	}
 	return -1;
 }
+
 int wait_all(){
 	printf("%s\n", "Calling wait");
 	pid_t pid;
@@ -179,6 +209,7 @@ int wait_all(){
 	
 	return LF_NOERROR;
 }
+
 void sync_printf(char* format,...) { 
 	static lpthread_mutex_t lock = {0,0};
 	Lmutex_lock(&lock);

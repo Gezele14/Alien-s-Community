@@ -21,6 +21,7 @@ typedef struct{
   int posj;
   int lmove;
   int move;
+  int pid;
   double velocity;
   char direction;
 }alien;
@@ -29,7 +30,7 @@ typedef struct{
 
 int getBridgeData(bridge *bridge, char* filename);
 int moveAlien(alien *Alien, cell map[24][46]);
-alien * createAlien(int baseVel, int home, int type, int mul);
+alien * createAlien(int baseVel, int home);
 void print(alien Alien);
 
 #endif 

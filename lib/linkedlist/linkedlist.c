@@ -170,7 +170,7 @@ int llist_getSize(llist *list)
   struct node *curr = *list;
 
   if (list == NULL || *list == NULL) {
-    fprintf(stderr, "llist_add_inorder: list is null\n");
+    return 0;
   }
 
   if(curr->data == NULL) {

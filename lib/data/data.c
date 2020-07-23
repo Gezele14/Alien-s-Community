@@ -108,8 +108,10 @@ int moveAlien(alien *Alien, cell map[24][46]){
  * @return New alien struct
 */
 
-alien * createAlien(int baseVel, int home, int type, int mul){
+alien * createAlien(int baseVel, int home){
   alien *newAlien = malloc(sizeof(alien));
+  int type = rand()%3;
+  int mul = (rand() % (200 - 50 + 1)) + 50;
   
   newAlien -> type =  type;
   newAlien -> isAlive = 1;

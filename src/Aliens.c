@@ -12,19 +12,19 @@
 #include <linkedlist.h>
 #include <lpthread.h>
 
-const int SCREEN_WIDTH = 1366; //
-const int SCREEN_HEIGHT = 720; //
-const int TILE_SIZE = 30;
+#define SCREEN_WIDTH 1366 
+#define SCREEN_HEIGHT 720
+#define TILE_SIZE 30
 
-const int xTiles = SCREEN_WIDTH/TILE_SIZE+1;
-const int yTiles = SCREEN_HEIGHT/TILE_SIZE;
+int xTiles = SCREEN_WIDTH/TILE_SIZE+1;
+int yTiles = SCREEN_HEIGHT/TILE_SIZE;
 
 cell map[24][46];
 int exitProgram = 0;
 int modeManual = 0; 
 
 
-SDL_Event e;
+
 SDL_Color fontColor = { 0, 0, 0, 255};
 
 int useClip = 0;
@@ -116,21 +116,14 @@ int main(int args, char **argv){
   }
 
   llist *communityA = llist_create(NULL);
-  llist *threadsCommunityA = llist_create(NULL);
   llist *communityB = llist_create(NULL);
-  llist *threadsCommunityB = llist_create(NULL);
 
   for (int i = 0; i < 5; i++){
-    int type = rand()%3;
-    int mul = (rand() % (200 - 50 + 1)) + 50;
     alien *temp;
-    if (i == 2)
-      temp = createAlien(baseVel, 0,type, mul);
-    else
-      temp = createAlien(baseVel, 1,type, mul);
+    temp = createAlien(baseVel, 1);
     lpthread_t *thread = malloc(sizeof(lpthread_t));
     Lthread_create(thread,NULL,&threadAlien,temp);
-    llist_addLast(threadsCommunityA,threadsCommunityA);
+    temp->pid = thread->pid;
     llist_addLast(communityA,temp);
   }
 
@@ -154,8 +147,8 @@ int main(int args, char **argv){
     SDL_Quit();
     return 1;
   }
+    
 
-  
   SDL_Texture *BG = loadTexture(fondoPath, ren);
   SDL_Texture *BiRoad = loadTexture(biroadPath, ren);
   SDL_Texture *Bridge = loadTexture(bridgePath, ren);
@@ -186,25 +179,28 @@ int main(int args, char **argv){
 
   int mouseX, mouseY;
   int animCounter = 0;
+  SDL_Event e;
   //A sleepy rendering loop, wait for 3 seconds and render and present the screen each time
+  SDL_RaiseWindow(win);
+  SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1"); 
 	while(!exitProgram){
+    
     //Event Handler
     while (SDL_PollEvent(&e)){
     //If user closes the window
     if (e.type == SDL_QUIT){
       exitProgram = 1;
     }
-    if (e.type == SDL_MOUSEBUTTONDOWN){
+    if (e.type == SDL_MOUSEBUTTONDOWN ){
       SDL_GetMouseState(&mouseX,&mouseY);
-      int communityASize = llist_getSize(communityA)-1;
+      int communityASize = llist_getSize(communityA);
 
-      for (int i = 0; i <= communityASize; i++){
+      for (int i = 0; i < communityASize; i++){
         alien *DUT = (alien *)llist_getbyId(communityA, i);
         if (delAlien(*DUT,mouseX, mouseY)){
-          lpthread_t *threadTemp = (lpthread_t *)llist_getbyId(threadsCommunityA,i);
-          Lthread_exit(threadTemp->pid);
-          llist_delById(threadsCommunityA, i);
-          llist_delById(communityA, i);
+          if(!Lthread_exit(DUT->pid)){
+            llist_delById(communityA, i);
+          }
           break;
         }
       }
@@ -243,9 +239,10 @@ int main(int args, char **argv){
     renderTexture(Castle2, ren,SCREEN_WIDTH-180, 235, 190, 170);
     renderTextureFull(castleB,ren,SCREEN_WIDTH-180,220);
 
-    for (int i = 0; i < llist_getSize(communityA)-1; i++){
+    for (int i = 0; i < llist_getSize(communityA); i++){
       alien *temp = (alien *)llist_getbyId(communityA, i);
-      renderTextureSheet(Alien, ren, temp->posj * TILE_SIZE, temp->posi * TILE_SIZE, 40, &clipsA[temp->type][useClip]);
+      if( temp != NULL)
+        renderTextureSheet(Alien, ren, temp->posj * TILE_SIZE, temp->posi * TILE_SIZE, 40, &clipsA[temp->type][useClip]);
     }
     
 		
@@ -266,9 +263,7 @@ int main(int args, char **argv){
 
   
   llist_free(communityA);
-  llist_free(threadsCommunityA);
   llist_free(communityB);
-  llist_free(threadsCommunityB);
   SDL_DestroyTexture(BG);
   SDL_DestroyTexture(BiRoad);
   SDL_DestroyTexture(Bridge);

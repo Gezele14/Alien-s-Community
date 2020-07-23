@@ -16,7 +16,7 @@
 #include <sys/syscall.h> // For call to gettid
 
 /* The maximum number of fibers that can be active at once. */
-#define MAX_FIBERS 10
+#define MAX_FIBERS 300
 /* The size of the stack for each fiber. */
 #define FIBER_STACK (1024*1024)
 
@@ -34,6 +34,7 @@ typedef struct{
 	pid_t pid; /* The pid of the child thread as returned by clone */
 	void* stack; /* The stack pointer */
 	char detached; // Detached or not
+	int killed;
 } lpthread_t;
 
 typedef struct{
@@ -78,7 +79,7 @@ lpthread_t thread: Thread structure
 void** retval: return value of the function
 */
 
-int Lthread_join(lpthread_t thread, void **retval);
+int Lthread_join(int pid, void **retval);
 
 /*
 Lthread_detachs: Detachs a thread and makes it unjoinable
