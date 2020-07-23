@@ -39,6 +39,8 @@ int Lthread_create(lpthread_t* thread, const lpthread_attr_t *attr, int (*start_
 		printf("Error: clone system call failed.\n");
 		return LF_CLONEERROR;
 	}
+
+	// E  E  E  E  E  E  E  E
 	// Copies thread to list
 	thread->detached=0;
 	thread->killed = 0;
@@ -48,13 +50,12 @@ int Lthread_create(lpthread_t* thread, const lpthread_attr_t *attr, int (*start_
 	} else{
 		for (int i = 0; i <= numLPthreads; i++){
 			if(lpthreadList[i].killed == 1){
-				numLPthreads = i;
-				memcpy((void*)&lpthreadList[numLPthreads], (void*)thread, sizeof(lpthread_t));
+				memcpy((void*)&lpthreadList[i], (void*)thread, sizeof(lpthread_t));
 				return LF_NOERROR;
 			}
 		}
 		if (numLPthreads < MAX_FIBERS-1){
-			memcpy((void*)&lpthreadList[numLPthreads], (void*)thread, sizeof(lpthread_t));
+			memcpy((void*)&lpthreadList[numLPthreads++], (void*)thread, sizeof(lpthread_t));
 			return LF_NOERROR;
 		}
 	}
