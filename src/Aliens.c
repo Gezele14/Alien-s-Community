@@ -19,18 +19,18 @@
 int xTiles = SCREEN_WIDTH/TILE_SIZE+1;
 int yTiles = SCREEN_HEIGHT/TILE_SIZE;
 
+//Variables globales
 cell map[24][46];
 int exitProgram = 0;
 int modeManual = 0; 
-
-
-
 SDL_Color fontColor = { 0, 0, 0, 255};
-
 int useClip = 0;
-
 int baseVel = 5;
 int maxTemp = 5;
+
+llist eastUp, eastDown;
+llist centerUp, centerDown;
+llist westUp, westDown;
 
 lpthread_mutex_t lock;
 
@@ -118,6 +118,14 @@ int main(int args, char **argv){
   llist *communityA = llist_create(NULL);
   llist *communityB = llist_create(NULL);
 
+  //Colas
+  eastUp = llist_create(NULL);
+  eastDown = llist_create(NULL);
+  centerUp = llist_create(NULL);
+  centerDown = llist_create(NULL);
+  westUp = llist_create(NULL);
+  westDown = llist_create(NULL);
+
   for (int i = 0; i < 5; i++){
     alien *temp;
     temp = createAlien(baseVel, 1);
@@ -183,6 +191,7 @@ int main(int args, char **argv){
   //A sleepy rendering loop, wait for 3 seconds and render and present the screen each time
   SDL_RaiseWindow(win);
   SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1"); 
+
 	while(!exitProgram){
     
     //Event Handler
@@ -218,37 +227,7 @@ int main(int args, char **argv){
   }
 
 		//First clear the renderer
-		SDL_RenderClear(ren);
-
-    //Draw the background
-    renderTexture(BG, ren,0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-    for(int i=0;i<yTiles;i++){
-      for(int j=0;j<xTiles;j++){
-        if (map[i][j].type == 1){
-          renderTexture(Road, ren, j * TILE_SIZE, i * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        } else if (map[i][j].type == 2){
-          renderTexture(BiRoad, ren, j * TILE_SIZE, i * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        } else if (map[i][j].type == 3){
-          renderTexture(Bridge, ren, j * TILE_SIZE, i * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-        }
-      }
-    }
-
-    renderTexture(Castle1, ren,10, 200, 170, 170);
-    renderTextureFull(castleA,ren,15,390);
-    renderTexture(Castle2, ren,SCREEN_WIDTH-180, 235, 190, 170);
-    renderTextureFull(castleB,ren,SCREEN_WIDTH-180,220);
-
-    for (int i = 0; i < llist_getSize(communityA); i++){
-      alien *temp = (alien *)llist_getbyId(communityA, i);
-      if( temp != NULL)
-        renderTextureSheet(Alien, ren, temp->posj * TILE_SIZE, temp->posi * TILE_SIZE, 40, &clipsA[temp->type][useClip]);
-    }
-    
 		
-
-		//Update the screen
-		SDL_RenderPresent(ren);
 
     SDL_Delay(17);
 
@@ -264,6 +243,12 @@ int main(int args, char **argv){
   
   llist_free(communityA);
   llist_free(communityB);
+  llist_free(eastUp);
+  llist_free(eastDown);
+  llist_free(centerDown);
+  llist_free(centerUp);
+  llist_free(westUp);
+  llist_free(westDown);
   SDL_DestroyTexture(BG);
   SDL_DestroyTexture(BiRoad);
   SDL_DestroyTexture(Bridge);
@@ -283,6 +268,9 @@ int main(int args, char **argv){
   return 0;
 }
 
+void algoritmo1(bridge *Bridge){
+
+}
 
 void loadMap(){
   FILE * file;
