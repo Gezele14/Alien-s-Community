@@ -3,6 +3,8 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdio.h>
 
+#include "../../include/graphics.h"
+
 
 /*
  * Loads a BMP image into a texture on the rendering device
@@ -154,4 +156,162 @@ void loadClips(SDL_Rect clips[3], int type, int num, int w, int h){
 		clips[i].w = w;
 		clips[i].h = h;
 	}
+}
+
+int configWindow(int *baseVel, int *maxTemp, int *exitProgram, int *modeManual){
+
+  //Opening a Window
+  SDL_Window *config = SDL_CreateWindow("Alien's Community",1366/2-150, 200, 320, 400, SDL_WINDOW_SHOWN);
+  if (config == NULL){
+    printf("SDL_CreateWindow Error: %s\n",SDL_GetError());
+    return 1;
+  }
+
+  //Creating a renderer
+  SDL_Renderer *configRen = SDL_CreateRenderer(config, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+  if (configRen == NULL){
+    SDL_DestroyWindow(config);
+    printf("SDL_CreateRenderer Error: %s\n", SDL_GetError());
+    return 1;
+  }
+
+  char velText[5];
+  char maxTempText[5];
+  int isButton1 = 0;
+  int isButton2 = 0;
+
+  SDL_itoa(*baseVel,velText,10);
+  SDL_itoa(*maxTemp,maxTempText,10);
+
+	SDL_Color fontColor = { 0, 0, 0, 255};
+	
+	//Load Textures & Fonts
+	char * bgPath = "../assets/images/bg.png"; 
+	char * button1Path = "../assets/images/button1.png" ;
+	char * button1_selPath = "../assets/images/button1_sel.png" ;
+	char * button2Path = "../assets/images/button2.png" ;
+	char * button2_selPath=  "../assets/images/button2_sel.png" ;
+	char * buttonleft = "../assets/images/left.png" ;
+	char * buttonright = "../assets/images/right.png" ;
+	char * buttonOk = "../assets/images/ok.png" ;
+	char * buttonCancel = "../assets/images/cancel.png" ;
+	char * iconPath = "../assets/images/icon.png" ;
+	char * mainFontPath = "../assets/fonts/font.ttf" ;
+  
+  SDL_Texture *BG = loadTexture(bgPath, configRen);
+  SDL_Texture *Button1 = loadTexture(isButton1? button1Path : button1_selPath,configRen);;
+  SDL_Texture *Button2 = loadTexture(isButton2? button2Path : button2_selPath,configRen); ;
+  SDL_Texture *Left = loadTexture(buttonleft, configRen);
+  SDL_Texture *Right = loadTexture(buttonright, configRen);
+  SDL_Texture *Ok = loadTexture(buttonOk, configRen);
+  SDL_Texture *Cancel = loadTexture(buttonCancel, configRen);
+  SDL_Texture *selection = renderText("Seleccione un modo", mainFontPath, fontColor, 25, configRen);
+  SDL_Texture *velSelText = renderText("Velocidad base", mainFontPath, fontColor, 25, configRen);
+  SDL_Texture *maxTempTitle = renderText("Tiempo maximo", mainFontPath, fontColor, 25, configRen);
+  SDL_Texture *velSel = renderText(velText, mainFontPath, fontColor, 25, configRen);
+  SDL_Texture *maxTempSel = renderText(maxTempText, mainFontPath, fontColor, 25, configRen);
+
+  SDL_Rect Button1Rect = getTextureRect(Button1,15,75);
+  SDL_Rect Button2Rect = getTextureRect(Button2,175,75);
+  SDL_Rect ButtonLeftRect = getTextureRect(Left, 80,210);
+  SDL_Rect ButtonRightRect = getTextureRect(Right,190,210);
+  SDL_Rect ButtonLeftRect2 = getTextureRect(Left, 80,290);
+  SDL_Rect ButtonRightRect2 = getTextureRect(Right,190,290);
+  SDL_Rect ButtonOkRect = getTextureRect(Ok,70,350);
+  SDL_Rect ButtonCancelRect = getTextureRect(Cancel,170,350);
+  SDL_Rect mouseRect;
+  SDL_Event e;
+  int mouseX, mouseY;
+  int exitWin = 0;
+  while(!exitWin){
+    Button1 = loadTexture(isButton1? button1_selPath : button1Path,configRen);
+    Button2 = loadTexture(isButton2? button2_selPath : button2Path,configRen); 
+    while (SDL_PollEvent(&e)){
+      //If user closes the window
+      if (e.type == SDL_QUIT){
+        *exitProgram = 1;
+        exitWin = 1;
+        return 1;
+      }
+      if ((e.type == SDL_MOUSEBUTTONDOWN) && SDL_BUTTON(SDL_BUTTON_LEFT)){
+        SDL_GetMouseState(&mouseX,&mouseY);
+        mouseRect.x = mouseX; mouseRect.y = mouseY; mouseRect.w = mouseRect.h = 1;
+        if(SDL_HasIntersection(&mouseRect,&Button1Rect)){
+          *modeManual = 1;
+          isButton1 = 1;
+          isButton2 = 0;
+        } else if(SDL_HasIntersection(&mouseRect,&Button2Rect)){
+          *modeManual = 0;
+          isButton2 = 1;
+          isButton1 = 0;
+        } else if(SDL_HasIntersection(&mouseRect,&ButtonLeftRect)){
+          if (*baseVel > 5)
+            *baseVel -= 5;
+          SDL_itoa(*baseVel,velText,10);
+          velSel = renderText(velText, mainFontPath, fontColor, 25, configRen);
+        } else if(SDL_HasIntersection(&mouseRect,&ButtonRightRect)){
+          if (*baseVel < 20)
+            *baseVel += 5;
+          SDL_itoa(*baseVel,velText,10);
+          velSel = renderText(velText, mainFontPath, fontColor, 25, configRen);
+        }else if(SDL_HasIntersection(&mouseRect,&ButtonLeftRect2)){
+          if (*maxTemp > 5)
+            *maxTemp -= 5;
+          SDL_itoa(*maxTemp,maxTempText,10);
+          maxTempSel = renderText(maxTempText, mainFontPath, fontColor, 25, configRen);
+        } else if(SDL_HasIntersection(&mouseRect,&ButtonRightRect2)){
+          if (*maxTemp < 60)
+            *maxTemp += 5;
+          SDL_itoa(*maxTemp,maxTempText,10);
+          maxTempSel = renderText(maxTempText, mainFontPath, fontColor, 25, configRen);
+        } else if(SDL_HasIntersection(&mouseRect,&ButtonOkRect)){
+          if (isButton2 || isButton1){
+            exitWin = 1;
+          }
+        }else if(SDL_HasIntersection(&mouseRect,&ButtonCancelRect)){
+          exitWin = 1;
+          return 1;
+        }
+      }
+    }
+    renderTexture(BG,configRen,0,0,400,400);
+
+    renderTextureFull(selection,configRen,35,25);
+    renderTextureFull(Button1,configRen,Button1Rect.x,Button1Rect.y);
+    renderTextureFull(Button2,configRen,Button2Rect.x,Button2Rect.y);
+
+    renderTextureFull(velSelText,configRen,60,170);
+    renderTextureFull(Left,configRen,ButtonLeftRect.x,ButtonLeftRect.y);
+    renderTextureFull(Right,configRen,ButtonRightRect.x,ButtonRightRect.y);
+    renderTextureFull(velSel,configRen,150,220);
+
+    renderTextureFull(maxTempTitle,configRen,60,260);
+    renderTextureFull(Left,configRen,ButtonLeftRect2.x,ButtonLeftRect2.y);
+    renderTextureFull(Right,configRen,ButtonRightRect2.x,ButtonRightRect2.y);
+    renderTextureFull(maxTempSel,configRen,150,300);
+
+    renderTextureFull(Ok,configRen,ButtonOkRect.x,ButtonOkRect.y);
+    renderTextureFull(Cancel,configRen,ButtonCancelRect.x,ButtonCancelRect.y);
+
+    //Update the screen
+		SDL_RenderPresent(configRen); 
+    SDL_Delay(30);
+  }
+	SDL_DestroyTexture(BG);
+  SDL_DestroyTexture(Button1);
+  SDL_DestroyTexture(Button2);
+  SDL_DestroyTexture(Left);
+  SDL_DestroyTexture(Right);
+  SDL_DestroyTexture(Ok);
+  SDL_DestroyTexture(Cancel);
+  SDL_DestroyTexture(selection);
+  SDL_DestroyTexture(velSelText);
+  SDL_DestroyTexture(velSel);
+  SDL_DestroyTexture(maxTempTitle);
+  SDL_DestroyTexture(maxTempSel);
+  SDL_DestroyWindow(config);
+  SDL_DestroyRenderer(configRen);
+
+  exitProgram = 0;
+  return 0;
 }

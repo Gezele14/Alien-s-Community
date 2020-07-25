@@ -108,12 +108,12 @@ int moveAlien(alien *Alien, cell map[24][46]){
  * @return New alien struct
 */
 
-alien * createAlien(int baseVel, int home){
+alien * createAlien(int baseVel, int home, int Types[100]){
   alien *newAlien = malloc(sizeof(alien));
-  int type = rand()%3;
+  int type = rand()%100;
   int mul = (rand() % (200 - 50 + 1)) + 50;
   
-  newAlien -> type =  type;
+  newAlien -> type =  Types[type];
   newAlien -> isAlive = 1;
   newAlien -> lmove = 0;
   newAlien -> move = 1;
@@ -130,7 +130,42 @@ alien * createAlien(int baseVel, int home){
     newAlien -> posj = 3;
   }else{
     newAlien -> direction = 'A';
+    newAlien -> posi = 10;
+    newAlien -> posj = 41;
+  }
+
+  return newAlien;
+}
+
+/**
+ * Create a new Alien
+ * @param baseVel: Base Velocity of the aliens
+ * @param home: Community of the alien
+ * @return New alien struct
+*/
+
+alien * createAlienManual(int baseVel, int home, int Type){
+  alien *newAlien = malloc(sizeof(alien));
+  int mul = (rand() % (200 - 50 + 1)) + 50;
+  
+  newAlien -> type =  Type;
+  newAlien -> isAlive = 1;
+  newAlien -> lmove = 0;
+  newAlien -> move = 1;
+  if (newAlien->type == 0){
+    newAlien -> velocity = baseVel;
+  } else if (newAlien->type == 1){
+    newAlien -> velocity = baseVel + baseVel * 0.2;
+  } else if (newAlien->type == 2){
+    newAlien -> velocity = baseVel + baseVel * mul / 100 ;
+  }
+  if(home){
+    newAlien -> direction = 'B';
     newAlien -> posi = 11;
+    newAlien -> posj = 3;
+  }else{
+    newAlien -> direction = 'A';
+    newAlien -> posi = 10;
     newAlien -> posj = 41;
   }
 
@@ -149,3 +184,89 @@ void print(alien Alien){
   printf("Direccion: %c\n", Alien.direction);
 }
 
+/**
+ * Fills a bridge struct froma a config file
+ * @param BR: Struct to fill
+ * @param filename: Path of the cofig file
+ * @return 0 if all is ok 1 if have some trouble
+*/
+int getConfigsData(configs *conf, char* filename){
+  config_t cfg, *cf;
+  
+  int probTypeA, probTypeB, probTypeC, mean;
+
+	cf = &cfg;
+	config_init(cf);
+
+	if (!config_read_file(cf, filename)) {
+		fprintf(stderr, "%s:%d - %s\n",
+			config_error_file(cf),
+			config_error_line(cf),
+			config_error_text(cf));
+		config_destroy(cf);
+		return 1;
+	}
+
+  if(!config_lookup_int(cf,"probTypeA", &probTypeA)){
+    printf("Error en probTypeA\n");
+    return 1;
+  }
+
+  if(!config_lookup_int(cf,"probTypeB", &probTypeB)){
+    printf("Error en probTypeB\n");
+    return 1;
+  }
+
+  if(!config_lookup_int(cf,"probTypeC", &probTypeC)){
+    printf("Error en probTypeC\n");
+    return 1;
+  }
+
+  if(!config_lookup_int(cf,"mean", &mean)){
+    printf("Error en Mean\n");
+    return 1;
+  }
+  
+  conf -> probTypeA = probTypeA;
+  conf -> probTypeB = probTypeB;
+  conf -> probTypeC = probTypeC;
+  conf -> mean = mean;
+
+  return 0;
+}
+
+void loadMap(cell map[24][46]){
+  FILE * file;
+  file = fopen("../assets/map/map1.map", "r");
+  char ch;
+  int i = 0;
+  int j = 0;
+  while ((ch = fgetc(file)) != EOF){
+   if(ch == '\n'){
+     i += 1;
+     j = 0;
+   } else if (ch == '-'){
+     map[i][j].type = 0;
+     map[i][j].direction = 'D';
+     j += 1;
+   } else if (ch == 'x'){
+     map[i][j].type = 1;
+     map[i][j].direction = 'A';
+     j += 1;
+   } else if (ch == 'o'){
+     map[i][j].type = 2;
+     map[i][j].direction = 'C';
+     j += 1;
+   } else if (ch == 'p'){
+     map[i][j].type = 3;
+     map[i][j].direction = 'C';
+     j += 1;
+   } else if (ch == 'z'){
+     map[i][j].type = 1;
+     map[i][j].direction = 'B';
+     j += 1;
+   }
+  }
+
+  fclose(file);
+}

@@ -12,6 +12,8 @@ typedef struct{
   int capacity;
   int used;
   int length;
+  int counter;
+  short lastAccess;
 }bridge;
 
 typedef struct{
@@ -26,11 +28,20 @@ typedef struct{
   char direction;
 }alien;
 
+typedef struct{
+  int probTypeA;
+  int probTypeB;
+  int probTypeC;
+  int mean;
+} configs;
 
 
 int getBridgeData(bridge *bridge, char* filename);
 int moveAlien(alien *Alien, cell map[24][46]);
-alien * createAlien(int baseVel, int home);
+alien * createAlien(int baseVel, int home, int Types[100]);
+alien * createAlienManual(int baseVel, int home, int Type);
 void print(alien Alien);
+int getConfigsData(configs *conf, char* filename);
+void loadMap(cell map[24][46]);
 
 #endif 

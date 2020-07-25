@@ -145,11 +145,14 @@ void llist_addLast(llist *list, void *data)
     struct node *curr = *list;
     struct node *new_node;
     if (list == NULL || *list == NULL) {
-        fprintf(stderr, "llist_add_inorder: list is null\n");
+      *list = malloc(sizeof (struct node));
+      new_node = *list;
+      new_node->data = data;
+      new_node->next = NULL;
     }
     
     // Head is empty node
-    if (curr->data == NULL)
+    else if (curr->data == NULL)
         curr->data = data;
         
     // Head is not empty, add new node to tail
@@ -195,6 +198,11 @@ int llist_delById(llist *list, int Id)
     if (llist_getSize(list)-1 < Id){
       return 1;
     }
+
+    if (llist_getSize(list)-1 == 1){
+      list = llist_create(NULL);
+    }
+
 
     if (Id == 0){
       *list = curr->next;

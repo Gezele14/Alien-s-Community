@@ -35,12 +35,11 @@ int createDir(const char* path){
  *  Lambda is the average number.
  *  Based on this code: https://stackoverflow.com/questions/34558230/generating-random-numbers-of-exponential-distribution  
 */
-double exponencial(double lambda) {
+double exponencial(double mean) {
   double u;
   double result;
-  srand((unsigned)time(NULL));
   u = rand()/(RAND_MAX+1.0);
-  result = -log(1-u)/lambda;
+  result = -log(1-u)*mean;
   return result; 
 }
 
@@ -124,4 +123,12 @@ void printc(char *msg, int color){
     printf("%s",msg);
     printf("\033[0m");
   }
+}
+
+double expRand(double  mean){
+  double u = rand() / (RAND_MAX + 1.0) ;
+  double lambda = 1 / mean;
+  double out = -log(u) / lambda;
+
+  return out;
 }
