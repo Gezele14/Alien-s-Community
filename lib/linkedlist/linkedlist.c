@@ -199,11 +199,6 @@ int llist_delById(llist *list, int Id)
       return 1;
     }
 
-    if (llist_getSize(list)-1 == 1){
-      list = llist_create(NULL);
-    }
-
-
     if (Id == 0){
       *list = curr->next;
       return 0;

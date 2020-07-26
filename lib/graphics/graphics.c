@@ -260,7 +260,7 @@ int configWindow(int *baseVel, int *maxTemp, int *exitProgram, int *modeManual){
           SDL_itoa(*maxTemp,maxTempText,10);
           maxTempSel = renderText(maxTempText, mainFontPath, fontColor, 25, configRen);
         } else if(SDL_HasIntersection(&mouseRect,&ButtonRightRect2)){
-          if (*maxTemp < 60)
+          if (*maxTemp < 120)
             *maxTemp += 5;
           SDL_itoa(*maxTemp,maxTempText,10);
           maxTempSel = renderText(maxTempText, mainFontPath, fontColor, 25, configRen);

@@ -1,8 +1,10 @@
 #include <libconfig.h>
 #include <time.h>
+#include <sys/time.h>
 #include <stdlib.h>
 
 #include "../../include/data.h"
+
 
 
 
@@ -60,7 +62,9 @@ int getBridgeData(bridge *BR, char* filename){
   BR->direction = (char)direction;
   BR->length = length;
   BR->used = used;
-  
+  BR->counter = 0;
+  BR->lastAccess = 1;
+  BR->accumulator = 0;
   return 0;
 }
 
@@ -76,6 +80,7 @@ int moveAlien(alien *Alien, cell map[24][46]){
   int q[4]= {0, 1, 0, -1};
 
   int iter = 0;
+
   if (Alien->lmove == 1){
     iter = 0;
   } else if (Alien->lmove == 2){
@@ -86,13 +91,120 @@ int moveAlien(alien *Alien, cell map[24][46]){
     iter = 3;
   }
 
+  //(i == 5 && j == 21)
+
   for(int x = 0; x < 4; x++){
-    if(Alien -> direction == map[i + p[iter]][j + q[iter]].direction){
+    char mapDir = map[i + p[iter]][j + q[iter]].direction;
+    int nextUp = map[i + p[iter]][j + q[iter]].usedUp;
+    int nextDown = map[i + p[iter]][j + q[iter]].usedDown;
+    if (mapDir == 'C' && (i + 1 == 5 && j == 22) && !nextDown){
+      int dir = rand() % 3;
+      switch (dir)
+      {
+      case 0:
+        Alien->posi += 1;
+        Alien->lmove = 4;
+        break;
+      case 1:
+        Alien->posi += 1;
+        Alien->lmove = 3;
+        break;
+      case 2:
+        Alien->posi += 1;
+        Alien->lmove = 2;
+        break;
+      default:
+        break;
+      }
+       if(Alien->direction == 'B'){
+          map[i][j].usedDown = 0;
+          map[Alien->posi][Alien->posj].usedDown = 1;
+        }else{
+          map[i][j].usedUp = 0;
+          map[Alien->posi][Alien->posj].usedUp = 1;
+        }
+      return 0;
+    }else if(mapDir == 'C' && (i -1 == 17 && j == 22) && !nextUp){
+      int dir = rand() % 3;
+      switch (dir)
+      {
+      case 0:
+        Alien->posi -= 1;
+        Alien->lmove = 4;
+        break;
+      case 1:
+        Alien->posi -= 1;
+        Alien->lmove = 1;
+        break;
+      case 2:
+        Alien->posi -= 1;
+        Alien->lmove = 2;
+        break;
+      default:
+        break;
+      }
+      if(Alien->direction == 'B'){
+        map[i][j].usedDown = 0;
+        map[Alien->posi][Alien->posj].usedDown = 1;
+      }else{
+        map[i][j].usedUp = 0;
+        map[Alien->posi][Alien->posj].usedUp = 1;
+      }
+      return 0;
+    } else if(mapDir == 'C'){
+      if(Alien -> direction == 'B' && nextDown){
+        break;
+      } else if(Alien -> direction == 'A' && nextUp){
+        break;
+      }
       Alien->posi = i + p[iter];
       Alien->posj = j + q[iter];
-      Alien->lmove = iter+1;
+      int cmp = getAlienPath(Alien,map,Alien->direction);
+      if(cmp != 5){
+        Alien->lmove = cmp;
+      }else if(Alien->posi == 5 && Alien -> posj == 11 && Alien->direction == 'B'){
+        Alien->lmove = 3;
+      }else if(Alien->posi == 17 && Alien -> posj == 11 && Alien->direction == 'B'){
+        Alien->lmove = 2;
+      }else{
+        Alien->lmove = iter+1;
+      }
+      if(Alien->direction == 'B'){
+        map[i][j].usedDown = 0;
+        map[Alien->posi][Alien->posj].usedDown = 1;
+      }else{
+        map[i][j].usedUp = 0;
+        map[Alien->posi][Alien->posj].usedUp = 1;
+      }
       return 0;
-    }
+    } else if(Alien -> direction == mapDir){
+      if(Alien -> direction == 'B' && nextDown){
+        break;
+      } else if(Alien -> direction == 'A' && nextUp){
+        break;
+      }
+      Alien->posi = i + p[iter];
+      Alien->posj = j + q[iter];
+      if(Alien->posi == 21 && Alien -> posj == 20){
+        Alien->lmove = 2;
+      }else if(Alien->posi == 21 && Alien -> posj == 43){
+        Alien->lmove = 1;
+      }else if(Alien->posi == 1 && Alien -> posj == 24){
+        Alien->lmove = 4;
+      }else if(Alien->posi == 1 && Alien -> posj == 1){
+        Alien->lmove = 3;
+      }else{
+        Alien->lmove = iter + 1;
+      }
+      if(Alien->direction == 'B'){
+        map[i][j].usedDown = 0;
+        map[Alien->posi][Alien->posj].usedDown = 1;
+      }else{
+        map[i][j].usedUp = 0;
+        map[Alien->posi][Alien->posj].usedUp = 1;
+      }
+      return 0;
+    } 
     iter ++;
     if (iter == 4)
       iter = 0;
@@ -100,6 +212,21 @@ int moveAlien(alien *Alien, cell map[24][46]){
   return 1;
 }
 
+int getAlienPath(alien *Alien, cell map[24][46], char dir){
+  int i = Alien -> posi;
+  int j = Alien -> posj;
+  if(map[i-1][j].direction == dir){
+    return 1;
+  } else if(map[i][j+1].direction == dir){
+    return 2;
+  } else if(map[i+1][j].direction == dir){
+    return 3;
+  } else if(map[i][j-1].direction == dir){
+    return 4;
+  } else{
+    return 5;
+  }
+}
 
 /**
  * Create a new Alien
@@ -112,6 +239,9 @@ alien * createAlien(int baseVel, int home, int Types[100]){
   alien *newAlien = malloc(sizeof(alien));
   int type = rand()%100;
   int mul = (rand() % (200 - 50 + 1)) + 50;
+  struct timeval tic;
+  gettimeofday(&tic, NULL);
+  newAlien->tic = (double)tic.tv_sec;
   
   newAlien -> type =  Types[type];
   newAlien -> isAlive = 1;
@@ -147,7 +277,9 @@ alien * createAlien(int baseVel, int home, int Types[100]){
 alien * createAlienManual(int baseVel, int home, int Type){
   alien *newAlien = malloc(sizeof(alien));
   int mul = (rand() % (200 - 50 + 1)) + 50;
-  
+  struct timeval tic;
+  gettimeofday(&tic, NULL);
+  newAlien->tic = (double)tic.tv_sec;
   newAlien -> type =  Type;
   newAlien -> isAlive = 1;
   newAlien -> lmove = 0;

@@ -4,7 +4,10 @@
 typedef struct {
   int type;
   char direction;
+  int usedUp;
+  int usedDown;
 } cell;
+
 
 typedef struct{
   char *name;
@@ -14,6 +17,7 @@ typedef struct{
   int length;
   int counter;
   short lastAccess;
+  float accumulator;
 }bridge;
 
 typedef struct{
@@ -24,6 +28,7 @@ typedef struct{
   int lmove;
   int move;
   int pid;
+  double tic;
   double velocity;
   char direction;
 }alien;
@@ -43,5 +48,6 @@ alien * createAlienManual(int baseVel, int home, int Type);
 void print(alien Alien);
 int getConfigsData(configs *conf, char* filename);
 void loadMap(cell map[24][46]);
+int getAlienPath(alien *Alien, cell map[24][46], char dir);
 
 #endif 

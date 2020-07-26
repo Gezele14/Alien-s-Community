@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/time.h>
+#include <time.h>
 #include <util.h>
 #include <data.h>
 #include <linkedlist.h>
@@ -31,20 +32,22 @@ int main(){
   int length = 10;
   int counter = 0;
   short lastAccess = 0;
+  float accumulator = 0;
 
-  bridge Puente = {"East",'A', capacity,used,length,counter,lastAccess};
+
+  bridge Puente = {"East",'A', capacity,used,length,counter,lastAccess,accumulator};
 
 
   llist *listA = llist_create(NULL);
   llist *listB = llist_create(NULL);
 
-  for (int i = 0; i < 5; i++)
+  for (int i = 0; i < 10; i++)
   {
     alien * Alien = createAlien(5,1,Types);
     llist_addLast(listA,Alien);
   }
 
-  for (int i = 0; i < 3; i++)
+  for (int i = 0; i < 8; i++)
   {
     alien * Alien = createAlien(5,1,Types);
     llist_addLast(listB,Alien);
@@ -52,8 +55,11 @@ int main(){
 
   //Ponen aqui el algoritmo
   int count_test = 10;
+  int value;
   while(count_test){
-    Survival_Algorithm(listA,listB,&Puente);
+    //Survival_Algorithm(listA,listB,&Puente);
+    value=Semaphore_Algorithm(listA,listB,&Puente,5,3);
+    printf("\nValor de retorno = %d\n",value);
     count_test--;    
   }
   
@@ -125,76 +131,108 @@ int Y_Algorithm(llist* up,llist* down,bridge* p,int Y) {
           return 1; // Si el contador aun es menor a Y, sigue la misma direccion
         }
       }
-    }
-    else{ 
-    if (direction){ //Si direccion es 1
-    printf("Pasan los maes de arriba, contador=%d\n",p->counter);
-      if(p->counter < Y && lenUp != 0){ //Si elcontador es menor a Y
-        p->counter+=1; //Deje pasar 1 alien
-        llist_pop(up); //Lo saca de la lista(Tiene que quitarse)
-        printf("Dejan pasar a un alien, contador=%d\n",p->counter);
-        if (p->counter == Y){ //El contador es igual a Y?
-          printf("Se alcanzo la cantidad Y y se reSurvival_Algorithm(llist* up,llist* down,bridge* p)inicia contador, contador=%d\n",p->counter);
-          p->counter = 0; // reinicia el contador
-          p->lastAccess = 0; //cambia la direccion a 0
+    }else{ 
+      if (direction){ //Si direccion es 1
+      printf("Pasan los maes de arriba, contador=%d\n",p->counter);
+        if(p->counter < Y && lenUp != 0){ //Si elcontador es menor a Y
+          p->counter+=1; //Deje pasar 1 alien
+          llist_pop(up); //Lo saca de la lista(Tiene que quitarse)
+          printf("Dejan pasar a un alien, contador=%d\n",p->counter);
+          if (p->counter == Y){ //El contador es igual a Y?
+            printf("Se alcanzo la cantidad Y y se reSurvival_Algorithm(llist* up,llist* down,bridge* p)inicia contador, contador=%d\n",p->counter);
+            p->counter = 0; // reinicia el contador
+            p->lastAccess = 0; //cambia la direccion a 0
+          }
+          return 1; // Si el contador aun es menor a Y, sigue la misma direccion
         }
-        return 1; // Si el contador aun es menor a Y, sigue la misma direccion
-      }
-    }else{
-      if(p->counter < Y && lenDown != 0){ //Si elcontador es menor a Y
-      printf("Pasan los maes de abajo, contador=%d\n",p->counter);
-        p->counter+=1; //Deje pasar 1 alien
-        llist_pop(down); //Lo saca de la lista(Tiene que quitarse)
-        printf("Dejan pasar a un alien, contador=%d\n",p->counter);
-        if (p->counter == Y){ //El contador es igual a Y?
-          printf("Se alcanzo la cantidad Y y se reinicia contador, contador=%d\n",p->counter);
-          p->counter = 0; // reinicia el contador
-          p->lastAccess = 1; //cambia la direccion a 0
-          
+      }else{
+        if(p->counter < Y && lenDown != 0){ //Si elcontador es menor a Y
+        printf("Pasan los maes de abajo, contador=%d\n",p->counter);
+          p->counter+=1; //Deje pasar 1 alien
+          llist_pop(down); //Lo saca de la lista(Tiene que quitarse)
+          printf("Dejan pasar a un alien, contador=%d\n",p->counter);
+          if (p->counter == Y){ //El contador es igual a Y?
+            printf("Se alcanzo la cantidad Y y se reinicia contador, contador=%d\n",p->counter);
+            p->counter = 0; // reinicia el contador
+            p->lastAccess = 1; //cambia la direccion a 0
+            
+          }
+          return 0; // Si el contador aun es menor a Y, sigue la misma direccion
         }
-        return 0; // Si el contador aun es menor a Y, sigue la misma direccion
       }
     }
-  }
-  return direction;
+return direction;
   ///termina
 }
 
 int Semaphore_Algorithm(llist* up,llist* down,bridge* p,float timeN,float timeS){
-  float time_Dif,accumulator;
-  int direction = p->lastAccess;
+  float time_Dif;  
   int lenUp = llist_getSize(up);
   int lenDown = llist_getSize(down);
   struct timeval tic, toc;
+  int direction = p->lastAccess;
+  float accum = p->accumulator;
 
   gettimeofday(&tic, NULL); //toma el tiempo
   for (int i=0;i<1;i++){
     if (lenUp == 0 && lenDown == 0){
+      printf("No hay aliens en ningun lado\n");
       sleep(1);
     }
-    else if(!direction == 0){
+    else if(direction){
       if(lenUp == 0){
+        printf("Ya no hay aliens arriba\n");
         break;
       }
-      return 1;
+      printf("Cruzo un alien de arriba\n");
+      sleep(1);
+      p->lastAccess = 1;
+      direction = p->lastAccess;
+      //return 1;
     }
     else{
       if(lenDown == 0){
+        printf("Ya no hay aliens abajo\n");
         break;
       }
-      return 0;
+      printf("Cruzo un alien de abajo\n");
+      sleep(1);
+      p->lastAccess = 0;
+      direction = p->lastAccess;
+      //return 0;
     }
   }
   gettimeofday(&toc, NULL);
   time_Dif = (double)(toc.tv_sec - tic.tv_sec);
-  accumulator+=time_Dif;
+  printf("Diferencia de tiempo = %f\n",time_Dif);
+  accum+=time_Dif;
+  p->accumulator = accum;
+  printf("Acumulador en = %f\n", accum); 
 
-  
-
-  return 0;
+  if(direction){
+    if(accum >= timeN){
+      printf("Ya se cumplio el tiempo para cruzar - Aliens de arriba\n");
+      printf("Acumulador en = %f\n", accum);
+      p->lastAccess = 0;
+      p->accumulator = 0; 
+      //direction = p->lastAccess;
+      printf("Ahora van cruzando los de abajo\n");
+    }
+  }
+  else{
+    if(accum >= timeS){
+      printf("Ya se cumplio el tiempo para cruzar - Aliens de bajo\n");
+      printf("Acumulador en = %f\n", accum);
+      p->lastAccess = 1;
+      p->accumulator = 0;
+      //direction = p->lastAccess;
+      printf("Ahora van cruzando los de arriba\n");
+    }
+  } 
+  return direction;
 }
 
-int Survival_Algorithm(llist* up,llist* down,bridge* p){
+int Survival_Algorithm(llist* up,llist* down,bridge* p){ //funcion miedo(Témanle)
   int temp;
   temp = Y_Algorithm(up,down,p,1);
   return temp;

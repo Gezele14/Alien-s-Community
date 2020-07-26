@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -57,11 +58,17 @@ int Y_Algorithm(llist* up,llist* down,bridge* p,int Y);
 int Semaphore_Algorithm();
 int Survival_Algorithm(llist* up,llist* down,bridge* p);
 
+int delAlienList(llist *List, alien *Alien);
+int killAlien(alien *Alien);
+
 
 int main(int args, char **argv){
 
   srand((unsigned)time(NULL));
   //Initialize Mutex
+
+  loadMap(map);
+
   if (Lmutex_init(&lock, NULL) != 0){ 
     printf("\n Mutex init has failed\n"); 
     return 1; 
@@ -69,10 +76,10 @@ int main(int args, char **argv){
   if(getBridgeData(&East, "../config/eastBridge.conf")){
     return 1;
   }
-  if(getBridgeData(&Center, "../config/eastBridge.conf")){
+  if(getBridgeData(&Center, "../config/centerBridge.conf")){
     return 1;
   }
-  if(getBridgeData(&West, "../config/eastBridge.conf")){
+  if(getBridgeData(&West, "../config/westBridge.conf")){
     return 1;
   }
   if(getConfigsData(&Config, "../config/generalConfig.conf")){
@@ -167,6 +174,7 @@ int main(int args, char **argv){
 	char * castle1Path = "../assets/images/castle1.png" ;
 	char * castle2Path = "../assets/images/castle2.png" ;
 	char * iconPath = "../assets/images/icon.png" ;
+	char * infoPath = "../assets/images/info.png" ;
 	char * mainFontPath = "../assets/fonts/font.ttf" ;
 
   SDL_Texture *BG = loadTexture(fondoPath, ren);
@@ -176,9 +184,15 @@ int main(int args, char **argv){
   SDL_Texture *Alien = loadTexture(alienPath,ren); 
   SDL_Texture *Castle1 = loadTexture(castle1Path,ren); 
   SDL_Texture *Castle2 = loadTexture(castle2Path,ren); 
+  SDL_Texture *Info = loadTexture(infoPath,ren); 
   
   SDL_Surface *icon = IMG_Load(iconPath);
   SDL_SetWindowIcon(win, icon);
+
+  SDL_RenderClear(ren);
+  renderTexture(Info, ren,0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+  SDL_RenderPresent(ren);
+  SDL_Delay(1000);
 
   //Texts
   SDL_Texture *castleA = renderText("Comunidad A", mainFontPath, fontColor, 25, ren);
@@ -203,10 +217,6 @@ int main(int args, char **argv){
   //A sleepy rendering loop, wait for 3 seconds and render and present the screen each time
   
 	while(!exitProgram){
-    autoGenCount++;
-    if(autoGenCount == 120){
-      continue;
-    }
     //Event Handler
     while (SDL_PollEvent(&e)){
     //If user closes the window
@@ -218,20 +228,26 @@ int main(int args, char **argv){
 
       for (int i = 0; i < llist_getSize(communityA); i++){
         alien *DUT = (alien *)llist_getbyId(communityA, i);
+        int y = DUT->posi;
+        int x = DUT->posj;
         if (delAlien(*DUT,mouseX, mouseY)){
           if(!Lthread_exit(DUT->pid)){
-            llist_delById(communityA, i);
+            killAlien(DUT);
           }
+          map[y][x].usedDown = 0;
           break;
         }
       }
 
       for (int i = 0; i < llist_getSize(communityB); i++){
         alien *DUT = (alien *)llist_getbyId(communityB, i);
+        int y = DUT->posi;
+        int x = DUT->posj;
         if (delAlien(*DUT,mouseX, mouseY)){
           if(!Lthread_exit(DUT->pid)){
-            llist_delById(communityB, i);
+            killAlien(DUT);
           }
+          map[y][x].usedUp = 0;
           break;
         }
       }
@@ -311,13 +327,13 @@ int main(int args, char **argv){
     for (int i = 0; i < llist_getSize(communityA); i++){
       alien *temp = (alien *)llist_getbyId(communityA, i);
       if( temp != NULL)
-        renderTextureSheet(Alien, ren, temp->posj * TILE_SIZE, temp->posi * TILE_SIZE, 30, &clipsA[temp->type][useClip]);
+        renderTextureSheet(Alien, ren, temp->posj * TILE_SIZE, temp->posi * TILE_SIZE, 25, &clipsA[temp->type][useClip]);
     }
 
     for (int i = 0; i < llist_getSize(communityB); i++){
       alien *temp = (alien *)llist_getbyId(communityB, i);
       if( temp != NULL)
-        renderTextureSheet(Alien, ren, temp->posj * TILE_SIZE, temp->posi * TILE_SIZE, 30, &clipsB[temp->type][useClip]);
+        renderTextureSheet(Alien, ren, temp->posj * TILE_SIZE, temp->posi * TILE_SIZE, 25, &clipsB[temp->type][useClip]);
     }
     
     renderTexture(Castle1, ren,10, 200, 170, 170);
@@ -326,7 +342,7 @@ int main(int args, char **argv){
     renderTextureFull(castleB,ren,SCREEN_WIDTH-180,220);
 
     if(toggleInfo){
-      renderTexture(Castle1, ren,0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+      renderTexture(Info, ren,0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
     }
 
 		//Update the screen
@@ -335,7 +351,7 @@ int main(int args, char **argv){
     SDL_Delay(17);
 
     animCounter += 1;
-    if (animCounter == 20){
+    if (animCounter == 15){
       animCounter = 0;
       useClip +=1;
       if (useClip == 3)
@@ -374,10 +390,33 @@ int main(int args, char **argv){
 
 int threadAlien(void *param){
   alien * Alien = (alien *)param;
+  struct timeval toc;
   while (Alien->isAlive){
     Lmutex_lock(&lock);
+    gettimeofday(&toc, NULL);
+    double elapsed = ((double)toc.tv_sec - Alien->tic);
+    if(elapsed > (double)maxTemp && Alien->type == 2){
+      Alien->isAlive = 0;
+      if(Alien->direction == 'B'){
+        map[Alien->posi][Alien->posj].usedDown = 0;
+      }else{
+        map[Alien->posi][Alien->posj].usedUp = 0;
+      }
+      Lmutex_unlock(&lock);
+      break;
+    }
     if (Alien->move) 
       moveAlien(Alien,map);
+    int i = Alien->posi;
+    int j = Alien->posj;
+    if((i==11 && j == 1) || (i==11 && j == 43)){
+      Alien->isAlive = 0;
+      if(Alien->direction == 'B'){
+        map[Alien->posi][Alien->posj].usedDown = 0;
+      }else{
+        map[Alien->posi][Alien->posj].usedUp = 0;
+      }
+    }
     Lmutex_unlock(&lock);
 
     double wait = Alien->velocity;
@@ -386,6 +425,30 @@ int threadAlien(void *param){
     // velocity = 200 then sleep 1/4 sec (max)
     // velocity = 5 then sleep 10 sec (min)
   }
+  killAlien(Alien);
+  return 0;
+}
+
+int delAlienList(llist *List, alien *Alien){
+  for (int i = 0; i < llist_getSize(List); i++){
+    alien * AUT = (alien *)llist_getbyId(List, i);
+    if(AUT->pid == Alien -> pid){
+      llist_delById(List,i);
+      return 0;
+    }
+  }
+  return 0;
+}
+
+int killAlien(alien *Alien){
+  delAlienList( communityA, Alien);
+  delAlienList( communityB, Alien);
+  delAlienList( westUp, Alien);
+  delAlienList( westDown, Alien);
+  delAlienList( centerUp, Alien);
+  delAlienList( centerDown, Alien);
+  delAlienList( eastUp, Alien);
+  delAlienList( eastDown, Alien);
   return 0;
 }
 
