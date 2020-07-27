@@ -10,7 +10,6 @@
 #include <util.h>
 #include <graphics.h>
 #include <data.h>
-#include <linkedlist.h>
 #include <lpthread.h>
 
 //Constants
@@ -26,7 +25,7 @@ int Types[100];
 int exitProgram = 0; 
 int modeManual = 0; 
 int useClip = 0;
-int baseVel = 5;
+int baseVel = 60;
 int maxTemp = 5;
 int toggleInfo = 0;
 int autoGenCount = 0;
@@ -38,7 +37,7 @@ llist *eastUp, *eastDown;
 llist *centerUp, *centerDown;
 llist *westUp, *westDown;
 
-lpthread_mutex_t lock;
+lpthread_mutex_t lock,fifo_lock;
 
 //Bringes
 bridge East;
@@ -50,16 +49,18 @@ configs Config;
 //Functions
 int threadAlien();
 int delAlien(alien Alien, int x, int y);
+int scheduler(void *Param);
 int generatorA();
 int generatorB();
 
 //Algorithms
-int Y_Algorithm(llist* up,llist* down,bridge* p,int Y);
-int Semaphore_Algorithm();
-int Survival_Algorithm(llist* up,llist* down,bridge* p);
+
 
 int delAlienList(llist *List, alien *Alien);
 int killAlien(alien *Alien);
+
+void insertIntoList(alien *Alien);
+void stopAlien(alien *Alien);
 
 
 int main(int args, char **argv){
@@ -70,6 +71,10 @@ int main(int args, char **argv){
   loadMap(map);
 
   if (Lmutex_init(&lock, NULL) != 0){ 
+    printf("\n Mutex init has failed\n"); 
+    return 1; 
+  }
+  if (Lmutex_init(&fifo_lock, NULL) != 0){ 
     printf("\n Mutex init has failed\n"); 
     return 1; 
   }
@@ -84,20 +89,20 @@ int main(int args, char **argv){
   }
   if(getConfigsData(&Config, "../config/generalConfig.conf")){
     return 1;
-  }
-  printf("Valor de mean: %d\n",Config.mean);
+  } 
 
   for (int i = 0; i < 100; i++){
-    if(i>Config.probTypeA){
+    if(i<Config.probTypeA){
       Types[i] = 0;
-    } else if(i>Config.probTypeB){
+    } else if(i<(Config.probTypeA+Config.probTypeB)){
       Types[i] = 1;
-    } else if(i>Config.probTypeC){
+    } else if(i<(Config.probTypeA+Config.probTypeB+Config.probTypeC)){
       Types[i] = 2;
     }
   }
-  
 
+
+  
   //Starting SDL
   if (SDL_Init(SDL_INIT_VIDEO) != 0){
     printf("SDL_Init Error: %s\n", SDL_GetError());
@@ -124,18 +129,8 @@ int main(int args, char **argv){
     return 1;
   }
 
-  lpthread_t thread1,thread2;
-  if(modeManual){
-    printf("Se selecciono el modo manual\n");
-  } else if(!modeManual){
-    Lthread_create(&thread1,NULL,&generatorA,NULL);
-    Lthread_create(&thread2,NULL,&generatorB,NULL);
-    printf("Se selecciono el modo Auto\n");
-  }
-
   communityA = llist_create(NULL);
   communityB = llist_create(NULL);
-
   //Colas
   eastUp = llist_create(NULL);
   eastDown = llist_create(NULL);
@@ -144,6 +139,22 @@ int main(int args, char **argv){
   westUp = llist_create(NULL);
   westDown = llist_create(NULL);
 
+  lpthread_t thread1,thread2,BridgeL,BridgeC,BridgeR;
+  if(modeManual){
+    printf("Se selecciono el modo manual\n");
+  } else if(!modeManual){
+    Lthread_create(&thread1,NULL,&generatorA,NULL);
+    Lthread_create(&thread2,NULL,&generatorB,NULL);
+    printf("Se selecciono el modo Auto\n");
+  }
+
+
+  dataScheduler *west = createDataScheduler(westUp,westDown,&West);
+  dataScheduler *east = createDataScheduler(eastUp,eastDown,&East);
+  dataScheduler *center = createDataScheduler(centerUp,centerDown,&Center);
+  Lthread_create(&BridgeL,NULL,&scheduler,(void *)west);
+  Lthread_create(&BridgeC,NULL,&scheduler,(void *)center);
+  Lthread_create(&BridgeR,NULL,&scheduler,(void *)east);
   //Opening a Window
   SDL_Window *win = SDL_CreateWindow("Alien's Community", 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
   if (win == NULL){
@@ -231,9 +242,7 @@ int main(int args, char **argv){
         int y = DUT->posi;
         int x = DUT->posj;
         if (delAlien(*DUT,mouseX, mouseY)){
-          if(!Lthread_exit(DUT->pid)){
-            killAlien(DUT);
-          }
+          DUT->isAlive = 0;
           map[y][x].usedDown = 0;
           break;
         }
@@ -244,9 +253,7 @@ int main(int args, char **argv){
         int y = DUT->posi;
         int x = DUT->posj;
         if (delAlien(*DUT,mouseX, mouseY)){
-          if(!Lthread_exit(DUT->pid)){
-            killAlien(DUT);
-          }
+          DUT->isAlive = 0;
           map[y][x].usedUp = 0;
           break;
         }
@@ -327,13 +334,13 @@ int main(int args, char **argv){
     for (int i = 0; i < llist_getSize(communityA); i++){
       alien *temp = (alien *)llist_getbyId(communityA, i);
       if( temp != NULL)
-        renderTextureSheet(Alien, ren, temp->posj * TILE_SIZE, temp->posi * TILE_SIZE, 25, &clipsA[temp->type][useClip]);
+        renderTextureSheet(Alien, ren, temp->posj * TILE_SIZE-5, temp->posi * TILE_SIZE, 25, &clipsA[temp->type][useClip]);
     }
 
     for (int i = 0; i < llist_getSize(communityB); i++){
       alien *temp = (alien *)llist_getbyId(communityB, i);
       if( temp != NULL)
-        renderTextureSheet(Alien, ren, temp->posj * TILE_SIZE, temp->posi * TILE_SIZE, 25, &clipsB[temp->type][useClip]);
+        renderTextureSheet(Alien, ren, temp->posj * TILE_SIZE+10, temp->posi * TILE_SIZE, 25, &clipsB[temp->type][useClip]);
     }
     
     renderTexture(Castle1, ren,10, 200, 170, 170);
@@ -382,18 +389,22 @@ int main(int args, char **argv){
   TTF_Quit();
   IMG_Quit();
   SDL_Quit();
-
+  
   Lmutex_destroy(&lock);
+  Lmutex_destroy(&fifo_lock);
   return 0;
 }
 
 
 int threadAlien(void *param){
+
   alien * Alien = (alien *)param;
   struct timeval toc;
+
   while (Alien->isAlive){
     Lmutex_lock(&lock);
     gettimeofday(&toc, NULL);
+
     double elapsed = ((double)toc.tv_sec - Alien->tic);
     if(elapsed > (double)maxTemp && Alien->type == 2){
       Alien->isAlive = 0;
@@ -405,8 +416,13 @@ int threadAlien(void *param){
       Lmutex_unlock(&lock);
       break;
     }
+
     if (Alien->move) 
       moveAlien(Alien,map);
+
+    insertIntoList(Alien);
+    stopAlien(Alien);
+
     int i = Alien->posi;
     int j = Alien->posj;
     if((i==11 && j == 1) || (i==11 && j == 43)){
@@ -467,17 +483,6 @@ int delAlien(alien Alien, int x, int y){
     return 0;
 }
 
-int Y_Algorithm(llist* up,llist* down,bridge* p,int Y) {
-  return 0;
-}
-
-int Semaphore_Algorithm(){
-  return 0;
-}
-
-int Survival_Algorithm(llist* up,llist* down,bridge* p){
-  return 0;
-}
 
 int generatorA(){
   while(1){
@@ -506,6 +511,56 @@ int generatorB(){
     double num = expRand(Config.mean);
 
     usleep( num * 2000000);
+  }
+  return 0;
+}
+
+void insertIntoList(alien *Alien){
+  if (Alien->direction == 'B'){
+    if(Alien->posi == 5 && Alien->posj == 21){
+      llist_addLast(westUp, Alien);      
+    }else if(Alien->posi == 5  && Alien->posj == 23){
+        llist_addLast(eastUp, Alien);        
+    }else if(Alien->posi == 6  && Alien->posj == 22){
+        llist_addLast(centerUp, Alien);
+    }
+  } else if (Alien->direction == 'A'){
+    if(Alien->posi == 17 && Alien->posj == 21){
+      llist_addLast(westDown, Alien);
+    }else if(Alien->posi == 17  && Alien->posj == 23){
+        llist_addLast(eastDown, Alien);
+    }else if(Alien->posi == 16  && Alien->posj == 22){
+        llist_addLast(centerDown, Alien);
+    }
+  }
+}
+
+void stopAlien(alien *Alien){
+  int i = Alien -> posi;
+  int j = Alien -> posj;
+
+  if ((i == 9 && j ==11) && Alien -> direction == 'B'){
+    Alien -> move = 0;
+  }else if ((i == 9 && j == 22) && Alien -> direction == 'B'){
+    Alien -> move = 0;
+  }else if ((i == 9 && j == 33) && Alien -> direction == 'B'){
+    Alien -> move = 0;
+  }else if ((i == 13 && j == 11) && Alien -> direction == 'A'){
+    Alien -> move = 0;
+  }else if ((i == 13 && j == 22) && Alien -> direction == 'A'){
+    Alien -> move = 0;
+  }else if ((i == 13 && j == 33) && Alien -> direction == 'A'){
+    Alien -> move = 0;
+  }
+}
+
+int scheduler(void *Param){
+  dataScheduler *Data = (dataScheduler *)Param;
+  while(1){
+    //Lmutex_lock(&fifo_lock);
+    FIFO(Data->Up, Data->Down, Data->Bridge,map);
+    //Lmutex_unlock(&fifo_lock);
+    usleep(100000);
   }
   return 0;
 }
