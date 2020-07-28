@@ -24,6 +24,8 @@ typedef struct{
   int scheduler;
   int y_value;
   double tic;
+  float m_time;
+  float n_time;
 }bridge;
 
 typedef struct{
@@ -67,6 +69,7 @@ int Y_Algorithm(llist* up,llist* down,bridge* p,int Y);
 int Semaphore_Algorithm(bridge* p,float timeN,float timeS);
 int Survival_Algorithm(llist* up,llist* down,bridge* p);
 int FIFO(llist *Up, llist *Down, bridge *bridge,cell map[24][46]);
+int Priority(llist *Up, llist *Down, bridge *Bridge,cell map[24][46]);
 dataScheduler *createDataScheduler(llist * Up, llist * Down,bridge *Bridge);
 
 #endif 
