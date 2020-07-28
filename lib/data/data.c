@@ -17,6 +17,7 @@ int getBridgeData(bridge *BR, char* filename){
   config_t cfg, *cf;
   const char *name = NULL;
   int capacity, length, algorithm, scheduler, Y;
+  double m_time,n_time;
 
 	cf = &cfg;
 	config_init(cf);
@@ -52,11 +53,18 @@ int getBridgeData(bridge *BR, char* filename){
   
   if(!config_lookup_int(cf,"Scheduler", &scheduler)){
     printf("Error en Scheduler\n");
-    return 1;
   }
 
   if(!config_lookup_int(cf,"Y_value", &Y)){
     printf("Error en Y_value\n");
+    return 1;
+  }
+  if(!config_lookup_float(cf,"Semaphore_Time_M", &m_time)){
+    printf("Error en Semaphore_Time_M\n");
+    return 1;
+  }
+  if(!config_lookup_float(cf,"Semaphore_Time_N", &n_time)){
+    printf("Error en Semaphore_Time_N\n");
     return 1;
   }
 
@@ -68,7 +76,9 @@ int getBridgeData(bridge *BR, char* filename){
   BR->length = length;
   BR->counter = 0;
   BR->lastAccess = 1;
-  BR->accumulator = 0;  
+  BR->accumulator = 0;
+  BR->m_time = m_time;
+  BR->n_time = n_time;  
   return 0;
 }
 
@@ -101,61 +111,7 @@ int moveAlien(alien *Alien, cell map[24][46]){
     char mapDir = map[i + p[iter]][j + q[iter]].direction;
     int nextUp = map[i + p[iter]][j + q[iter]].usedUp;
     int nextDown = map[i + p[iter]][j + q[iter]].usedDown;
-    if (mapDir == 'C' && (i + 1 == 5 && j == 22) && !nextDown){
-      int dir = rand() % 3;
-      switch (dir)
-      {
-      case 0:
-        Alien->posi += 1;
-        Alien->lmove = 4;
-        break;
-      case 1:
-        Alien->posi += 1;
-        Alien->lmove = 3;
-        break;
-      case 2:
-        Alien->posi += 1;
-        Alien->lmove = 2;
-        break;
-      default:
-        break;
-      }
-       if(Alien->direction == 'B'){
-          map[i][j].usedDown = 0;
-          map[Alien->posi][Alien->posj].usedDown = 1;
-        }else{
-          map[i][j].usedUp = 0;
-          map[Alien->posi][Alien->posj].usedUp = 1;
-        }
-      return 0;
-    }else if(mapDir == 'C' && (i -1 == 17 && j == 22) && !nextUp){
-      int dir = rand() % 3;
-      switch (dir)
-      {
-      case 0:
-        Alien->posi -= 1;
-        Alien->lmove = 4;
-        break;
-      case 1:
-        Alien->posi -= 1;
-        Alien->lmove = 1;
-        break;
-      case 2:
-        Alien->posi -= 1;
-        Alien->lmove = 2;
-        break;
-      default:
-        break;
-      }
-      if(Alien->direction == 'B'){
-        map[i][j].usedDown = 0;
-        map[Alien->posi][Alien->posj].usedDown = 1;
-      }else{
-        map[i][j].usedUp = 0;
-        map[Alien->posi][Alien->posj].usedUp = 1;
-      }
-      return 0;
-    } else if(mapDir == 'C'){
+    if(mapDir == 'C'){
       if(Alien -> direction == 'B' && nextDown){
         break;
       } else if(Alien -> direction == 'A' && nextUp){
@@ -537,7 +493,7 @@ int FIFO(llist *Up, llist *Down, bridge *Bridge,cell map[24][46]){
     getAlienFrom = Y_Algorithm(Up,Down,Bridge,Bridge->y_value);
   }
   if(Bridge->algorithm == 1){
-    getAlienFrom = Semaphore_Algorithm(Bridge,8, 5);
+    getAlienFrom = Semaphore_Algorithm(Bridge,Bridge->m_time, Bridge->n_time);
   }  
   if(Bridge->algorithm == 2){
     getAlienFrom = Survival_Algorithm(Up,Down,Bridge);
@@ -590,6 +546,74 @@ int FIFO(llist *Up, llist *Down, bridge *Bridge,cell map[24][46]){
   return 0;
 }
 
+int Priority(llist *Up, llist *Down, bridge *Bridge,cell map[24][46]){
+  int getAlienFrom = 0;
+  alien *Alien;
+  float accum = Bridge->accumulator;
+  struct timeval toc;
+
+  // printf("Tamano de UP: %d para el puente %s\n",llist_getSize(Up),Bridge->name);
+  // printf("Tamano de DOWN: %d para el puente %s\n",llist_getSize(Down),Bridge->name);  
+  
+  gettimeofday(&toc, NULL);
+  double time_Dif = (double)(toc.tv_sec - Bridge->tic);
+  accum += time_Dif;
+  Bridge->accumulator = accum;
+
+  //Chose the algorithm
+  if(Bridge->algorithm == 0){
+    getAlienFrom = Y_Algorithm(Up,Down,Bridge,Bridge->y_value);
+  }
+  if(Bridge->algorithm == 1){
+    getAlienFrom = Semaphore_Algorithm(Bridge,Bridge->m_time, Bridge->n_time);
+  }  
+  if(Bridge->algorithm == 2){
+    getAlienFrom = Survival_Algorithm(Up,Down,Bridge);
+  }
+
+  //Get Alien form Qeues
+  if(getAlienFrom){
+    if(llist_getSize(Up) == 0){
+      return 0;
+    }
+    Alien = (alien *)llist_getbyId(Up,0);
+    if((Alien->posi <= 9 && Alien->posi >= 5 ) && (Alien->posj == 11 || Alien->posj == 22 || Alien->posj == 33 )){
+      map[Alien->posi][Alien->posj].usedDown = 0;
+      Alien->move = 0;
+      Alien -> posi = 11;
+      llist_delById(Up,0);
+    }
+  } else{
+    if(llist_getSize(Down) == 0){
+      return 0;
+    }
+    Alien = (alien *)llist_getbyId(Down,0);
+    if((Alien->posi <= 17 && Alien->posi >= 13 ) && (Alien->posj == 11 || Alien->posj == 22 || Alien->posj == 33 )){
+      map[Alien->posi][Alien->posj].usedUp = 0;
+      Alien->move = 0;
+      Alien -> posi = 11;
+      llist_delById(Down,0);
+    }
+  }
+
+  if(Alien->move){
+    return 0;
+  }
+
+  double wait = (double)Bridge->length / (double)Alien->velocity;
+  usleep(wait * 1000000);
+
+  if(getAlienFrom){
+    Alien -> posi += 2;
+    Alien -> move = 1;
+  } else{
+    Alien -> posi -= 2;
+    Alien -> move = 1;
+  }
+  return 0;
+}
+
+
 dataScheduler *createDataScheduler(llist * Up, llist * Down,bridge *Bridge){
   dataScheduler *out= malloc(sizeof(dataScheduler));
   out->Up = Up;
@@ -597,3 +621,5 @@ dataScheduler *createDataScheduler(llist * Up, llist * Down,bridge *Bridge){
   out->Bridge = Bridge;
   return out;
 }
+
+

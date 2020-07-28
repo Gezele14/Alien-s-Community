@@ -50,6 +50,8 @@ configs Config;
 int threadAlien();
 int delAlien(alien Alien, int x, int y);
 int scheduler(void *Param);
+void addInOrder(llist *List, alien * Alien);
+void verifRand(alien * Alien);
 int generatorA();
 int generatorB();
 
@@ -419,7 +421,7 @@ int threadAlien(void *param){
 
     if (Alien->move) 
       moveAlien(Alien,map);
-
+    verifRand(Alien);
     insertIntoList(Alien);
     stopAlien(Alien);
 
@@ -518,21 +520,50 @@ int generatorB(){
 void insertIntoList(alien *Alien){
   if (Alien->direction == 'B'){
     if(Alien->posi == 5 && Alien->posj == 21){
-      llist_addLast(westUp, Alien);      
+      if(West.scheduler == 1){
+        addInOrder(westUp, Alien);        
+      }else{
+        llist_addLast(westUp, Alien); 
+      } 
+                
     }else if(Alien->posi == 5  && Alien->posj == 23){
-        llist_addLast(eastUp, Alien);        
+      if(East.scheduler == 1){
+        addInOrder(eastUp, Alien);        
+      }else{
+        llist_addLast(eastUp, Alien); 
+      } 
+                    
     }else if(Alien->posi == 6  && Alien->posj == 22){
-        llist_addLast(centerUp, Alien);
+      if(Center.scheduler == 1){
+        addInOrder(centerUp, Alien);        
+      }else{
+        llist_addLast(centerUp, Alien); 
+      } 
+      
     }
   } else if (Alien->direction == 'A'){
     if(Alien->posi == 17 && Alien->posj == 21){
-      llist_addLast(westDown, Alien);
+      if(West.scheduler == 1){
+        addInOrder(westDown, Alien);        
+      }else{
+        llist_addLast(westDown, Alien); 
+      } 
+        
     }else if(Alien->posi == 17  && Alien->posj == 23){
-        llist_addLast(eastDown, Alien);
-    }else if(Alien->posi == 16  && Alien->posj == 22){
-        llist_addLast(centerDown, Alien);
+      if(East.scheduler == 1){
+        addInOrder(eastDown, Alien);        
+      }else{
+        llist_addLast(eastDown, Alien); 
+      } 
+             
+    }else if(Alien->posi == 16  && Alien->posj == 22){      
+      if(Center.scheduler == 1){
+        addInOrder(centerDown, Alien);        
+      }else{
+        llist_addLast(centerDown, Alien); 
+      }
     }
-  }
+  } 
 }
 
 void stopAlien(alien *Alien){
@@ -557,10 +588,93 @@ void stopAlien(alien *Alien){
 int scheduler(void *Param){
   dataScheduler *Data = (dataScheduler *)Param;
   while(1){
-    //Lmutex_lock(&fifo_lock);
-    FIFO(Data->Up, Data->Down, Data->Bridge,map);
-    //Lmutex_unlock(&fifo_lock);
+    if(Data->Bridge->scheduler == 0){
+      continue;
+    }else if(Data->Bridge->scheduler == 1){
+      Priority(Data->Up, Data->Down, Data->Bridge,map); 
+    }else if(Data->Bridge->scheduler == 2){
+      continue;
+    }else if(Data->Bridge->scheduler == 3){
+      FIFO(Data->Up, Data->Down, Data->Bridge,map); 
+    }else if(Data->Bridge->scheduler == 4){
+      continue;
+    }
+    
     usleep(100000);
   }
   return 0;
+}
+
+void addInOrder(llist *List, alien * Alien){
+  int size = llist_getSize(List);  
+  alien *Alien2;
+  if(size == 0){      
+      llist_addLast(List, Alien);
+      printf("Guardado de ultimo\n");
+  }
+  for(int i = 0; i < size; i++){
+    Alien2 = (alien *)llist_getbyId(List,i);
+    if(Alien->type > Alien2->type){
+      llist_addById(List,Alien,i);
+      printf("Guardado en pos: %d\n",i);
+      break;
+    }
+    if(i == size-1){
+      llist_addLast(List, Alien);
+      printf("Guardado de ultimo\n");
+      break;
+    }
+  }
+}
+
+void verifRand(alien * Alien){
+  int i = Alien->posi;
+  int j = Alien->posj;
+  if (i == 5 && j == 22 && Alien->direction == 'B'){
+    Alien -> move = 0;
+    usleep(500000);
+    int dir = rand() % 3;
+    if(dir == 0 && llist_getSize(westUp) < 4){
+      map[i][j].usedDown = 0;
+      Alien->posj -= 1;
+      Alien->lmove = 4;
+      Alien->move = 1;
+      map[Alien->posi][Alien->posj].usedDown = 1;
+    }else if(dir == 1 && llist_getSize(centerUp) < 3){
+      map[i][j].usedDown = 0;
+      Alien->posi += 1;
+      Alien->lmove = 3;
+      Alien->move = 1;
+      map[Alien->posi][Alien->posj].usedDown = 1;
+    }else if(dir == 2 && llist_getSize(eastUp) < 4){
+      map[i][j].usedDown = 0;
+      Alien->posj += 1;
+      Alien->lmove = 2;
+      Alien->move = 1;
+      map[Alien->posi][Alien->posj].usedDown = 1;
+    }
+  } else if (i == 17 && j == 22 && Alien->direction == 'A'){
+    Alien -> move = 0;
+    usleep(500000);
+    int dir = rand() % 3;
+    if(dir == 0 && llist_getSize(westDown) < 4){
+      map[i][j].usedUp = 0;
+      Alien->posj -= 1;
+      Alien->lmove = 4;
+      Alien->move = 1;
+      map[Alien->posi][Alien->posj].usedUp = 1;
+    }else if(dir == 1 && llist_getSize(centerDown) < 3){
+      map[i][j].usedUp = 0;
+      Alien->posi -= 1;
+      Alien->lmove = 1;
+      Alien->move = 1;
+      map[Alien->posi][Alien->posj].usedUp = 1;
+    }else if(dir == 2 && llist_getSize(eastDown) < 4){
+      map[i][j].usedUp = 0;
+      Alien->posj += 1;
+      Alien->lmove = 2;
+      Alien->move = 1;
+      map[Alien->posi][Alien->posj].usedUp = 1;
+    }
+  }
 }
