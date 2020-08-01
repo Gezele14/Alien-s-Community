@@ -26,7 +26,7 @@ int exitProgram = 0;
 int modeManual = 0; 
 int useClip = 0;
 int baseVel = 60;
-int maxTemp = 5;
+int maxTemp = 100;
 int toggleInfo = 0;
 int autoGenCount = 0;
 
@@ -371,13 +371,7 @@ int main(int args, char **argv){
   
   llist_free(communityA);
   llist_free(communityB);
-  llist_free(eastUp);
-  llist_free(eastDown);
-  llist_free(centerDown);
-  llist_free(centerUp);
-  llist_free(westUp);
-  llist_free(westDown);
-  SDL_DestroyTexture(BG);
+
   SDL_DestroyTexture(BiRoad);
   SDL_DestroyTexture(Bridge);
   SDL_DestroyTexture(Road);
@@ -610,18 +604,15 @@ void addInOrder(llist *List, alien * Alien){
   alien *Alien2;
   if(size == 0){      
       llist_addLast(List, Alien);
-      printf("Guardado de ultimo\n");
   }
   for(int i = 0; i < size; i++){
     Alien2 = (alien *)llist_getbyId(List,i);
     if(Alien->type > Alien2->type){
       llist_addById(List,Alien,i);
-      printf("Guardado en pos: %d\n",i);
       break;
     }
     if(i == size-1){
       llist_addLast(List, Alien);
-      printf("Guardado de ultimo\n");
       break;
     }
   }
